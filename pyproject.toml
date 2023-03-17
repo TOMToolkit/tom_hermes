@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "tom-hermes"
+version = "0.1.0"
+description = "A TOM Toolkit Broker module for querying the Hermes Alert API"
+authors = ["Lindy Lindstrom <llindstrom@lco.global>"]
+readme = "README.md"
+license = "GPL-3.0-or-later"
+
+packages = [{include = "tom_hermes"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+tomtoolkit = "^2.13.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
