@@ -10,7 +10,7 @@ packages = [{include = "tom_hermes"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-tomtoolkit = "^2.13.0"
+tomtoolkit = "^2.10"
 
 
 [build-system]
