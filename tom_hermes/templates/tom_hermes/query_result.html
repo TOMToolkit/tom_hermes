@@ -60,12 +60,18 @@
       {% endfor %}
     </tbody>
   </table>
+
+<!-- close form or dev depending on whether tom_nonlocalizedevents is installed -->
 {% if tom_nonlocalizedevents_installed %}
 </form>
 {% else %}
 </div>
 {% endif %}
+
 {% if broker_feedback %}
   <div class="alert alert-danger" role="alert">{{broker_feedback}}</div>
 {% endif %}
+<footer>
+  <p><em>tom_hermes version {{ version }}</em></p>
+</footer>
 {% endblock %}
