@@ -1,0 +1,71 @@
+{% extends 'tom_common/base.html' %}
+{% block title %}Query Result for {{ query }}{% endblock %}
+{% block content %}
+<h2>Query Result for {{ query }}</h2>
+{% if tom_nonlocalizedevents_installed %}
+<form method="POST" action="{% url 'nonlocalizedevents:create-from-alert' %}">
+  {% csrf_token %}
+  <div class="">
+    <input type="hidden" name="broker" value="{{ query.broker }}"/>
+    <input type="hidden" name="query_id" value="{{ query.id }}"/>
+    <input type="submit" value="Create Events" class="btn btn-primary"/>
+  </div>
+{% else %}
+<!-- tom_nonlocalizedevents not istalled. So, this is all a div, not a form -->
+<div>
+  <div>
+    <p>NOTE: tom_nonlocalizedevents is not intalled. Event creation functions disabled.</p>
+  </div>
+{% endif %}
+  <div>
+    <p><em>Note: Event creation can take time as sky maps are retreived from GraceDb.</em></p>
+  </div>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Event ID</th>
+        <th>Title</th>
+        <th>Sequence Type (Number)</th>
+        <th>Hermes</th>
+        <th>GraceDB</th>
+        <th><span title="{{ score_description }}">FAR</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- In this context, alerts are NonLocalizedEvents -->
+      {% for event in alerts %}
+      <tr>
+        {% if tom_nonlocalizedevents_installed %}
+        {% if event.nonlocalizedevent_id %}
+        <!-- If this event already exits: no checkbox, Event ID is link to EventDetailPage -->
+        <td></td>
+        <td><a href="{% url 'nonlocalizedevents:detail'  event.nonlocalizedevent_id %}" target="_blank" title="NonLocalizedEvent Detail"><b>{{ event.event_id }}</b></a></td>
+        {% else %}
+        <!-- If this event does not exist: add checkbox, Event ID is not link -->
+        <td><input type="checkbox" name="events" value="{{ event.event_id }}"/></td>
+        <td>{{ event.event_id }}</td>
+        {% endif %}
+        {% else %}
+        <!-- tom_nonlocalizedevents not installed-->
+        <td></td>
+        <td>{{ event.event_id }}</td>
+        {% endif %}
+        <td>{{ event.title }}</td>
+        <td>{{ event.sequence_type }} ({{ event.sequence_number }})</td>
+        <td><a href="{{ event.hermes_url }}" target="_blank" title="Hermes Alert">Hermes</a></td>
+        <td><a href="{{ event.gracedb_url }}" target="_blank" title="GraceDB View">GraceDB</a></td>
+        <td>{{ event.far|stringformat:"e" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% if tom_nonlocalizedevents_installed %}
+</form>
+{% else %}
+</div>
+{% endif %}
+{% if broker_feedback %}
+  <div class="alert alert-danger" role="alert">{{broker_feedback}}</div>
+{% endif %}
+{% endblock %}
