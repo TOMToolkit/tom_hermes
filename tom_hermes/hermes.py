@@ -157,6 +157,8 @@ class HermesBroker(GenericBroker):
 
     def to_generic_alert(self, nonlocalizedevent):
         """Map the Hermes Nonlocalized fields into GenericAlert fields.
+        Rather than tom_alerts.GenericAlert, tom_hermes uses the HermesNonLocalizedEventAlert
+        dataclass to pass on to the query_result template.
 
         Use the last messages in the event sequence.
         """
@@ -169,7 +171,6 @@ class HermesBroker(GenericBroker):
         message = nonlocalizedevent['sequences'][-1]['message'] # index -1 gives last in sequence
         sequence_type = nonlocalizedevent['sequences'][-1]['sequence_type']
         sequence_number = nonlocalizedevent['sequences'][-1]['sequence_number']
-        timestamp = message['published']
         try:
             gracedb_url = message['data']['eventpage_url'],
         except KeyError:
@@ -191,11 +192,6 @@ class HermesBroker(GenericBroker):
             if nonlocalized_event is not None:
                 nle_id = nonlocalized_event.id
         
-        # extract an ID value to use as a caching unique identifier
-#        cache_id = 0
-#        import uuid
-#        asdf: uuid.uuid4 = 
-
         hermes_alert = HermesNonLocalizedEventAlert(
             id=event_id,
             event_id=event_id,
