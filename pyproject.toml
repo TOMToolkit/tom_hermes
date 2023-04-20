@@ -10,7 +10,7 @@ license = "GPL-3.0-or-later"
 packages = [{include = "tom_hermes"}]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.8,<3.12"
 tomtoolkit = "^2.10"
 
 [tool.poetry-dynamic-versioning]
