@@ -1,6 +1,7 @@
 [tool.poetry]
 name = "tom-hermes"
-version = "0.1.0"
+# this version is a placeholder: version supplied by poetry-dynamic-versioning
+version = "0.0.0"
 description = "A TOM Toolkit Broker module for querying the Hermes Alert API"
 authors = ["Lindy Lindstrom <llindstrom@lco.global>"]
 readme = "README.md"
@@ -12,7 +13,22 @@ packages = [{include = "tom_hermes"}]
 python = "^3.9"
 tomtoolkit = "^2.10"
 
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+style = "pep440"
+# the default pattern regex makes the 'v' manditory
+# this pattern modifies the default regex in order to make the 'v' optional
+# ('v' becomes '[v]?' meaning a single v, [v], and ? means optional)
+pattern = "(?x)^[v]?((?P<epoch>\\d+)!)?(?P<base>\\d+(\\.\\d+)*)([-._]?((?P<stage>[a-zA-Z]+)[-._]?(?P<revision>\\d+)?))?(\\+(?P<tagged_metadata>.+))?$"
+
+# substitute version not only in pyproject.toml (which the config block above does)
+# but also the __version__.py file
+[tool.poetry-dynamic-versioning.substitution]
+
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+build-backend = "poetry_dynamic_versioning.backend"
+# poetry_dynamic_versioning.backend is a thin wrapper around the standard build-backend = "poetry.core.masonry.api"
+
