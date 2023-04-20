@@ -1,35 +1,45 @@
+from dataclasses import dataclass
+import logging
+import os
 import requests
 
-from crispy_forms.layout import Column, Div, Fieldset, HTML, Layout, Row
+from crispy_forms.layout import Column, Fieldset, Layout, Row
 
 from django import forms
+from django.apps import apps
 from django.conf import settings
 
-# TODO: these import are for upstream alerting which needs to be re-considered
+from tom_hermes import __version__
+
+# TODO: these imports are for upstream alerting which needs to be re-considered
 #from confluent_kafka import KafkaException
 #from hop import Stream
 #from hop.auth import Auth
 #from tom_alerts.exceptions import AlertSubmissionException
 #from tom_alerts.alerts import GenericUpstreamSubmissionForm
 
-from tom_alerts.alerts import GenericAlert, GenericBroker, GenericQueryForm
-
+from tom_alerts.alerts import GenericBroker, GenericQueryForm
 from tom_targets.models import Target
 
-HERMES_URL = 'http://hermes-dev.lco.gtn'
+logger = logging.getLogger(__name__)
+#logger.setLevel(logging.DEBUG)
+
+HERMES_URL = os.getenv('HERMES_BASE_URL', 'http://hermes.lco.global')
 HERMES_API_VERSION = 0
 HERMES_API_URL = f'{HERMES_URL}/api/v{HERMES_API_VERSION}'
 
 
 class HermesQueryForm(GenericQueryForm):
-    keyword = forms.CharField(required=False, label='Keyword search')
     topic = forms.MultipleChoiceField(choices=[], required=False, label='Topic')
-    cone_search = forms.CharField(required=False, label='Cone Search', help_text='RA, Dec, radius in degrees')
-    polygon_search = forms.CharField(required=False, label='Polygon Search',
-                                     help_text='Comma-separated pairs of space-delimited coordinates (degrees)')
-    timestamp_after = forms.DateTimeField(required=False, label='Datetime lower')
-    timestamp_before = forms.DateTimeField(required=False, label='Datetime upper')
-    event_trigger_number = forms.CharField(required=False, label='LVC Trigger Number')
+    timestamp_after = forms.DateTimeField(required=False, label='Datetime lower',
+        #widget=forms.TextInput(attrs={'type': 'date'})
+        )
+    timestamp_before = forms.DateTimeField(required=False, label='Datetime upper',
+        #widget=forms.TextInput(attrs={'type': 'date'})
+        )
+
+    event_id = forms.CharField(required=False, label='Hermes Event ID')
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -39,47 +49,33 @@ class HermesQueryForm(GenericQueryForm):
         self.helper.layout = Layout(
             self.common_layout,
             Fieldset(
-                '',
-                Div('topic'),
-                Div('keyword')
-            ),
-            Fieldset(
                 'Time Filters',
                 Row(
                     Column('timestamp_after'),
                     Column('timestamp_before')
                 )
             ),
-            Fieldset(
-                'Spatial Filters',
-                Div('cone_search'),
-                Div('polygon_search')
-            ),
-            HTML('<hr>'),
-            Fieldset(
-                'LVC Trigger Number',
-                HTML('''
-                    <p>
-                    The LVC Trigger Number filter will only search the LVC topic. Please be aware that any topic
-                    selections will be ignored.
-                    </p>
-                '''),
-                'event_trigger_number'
-            )
+            'event_id',
+
         )
 
     def clean(self):
         cleaned_data = super().clean()
-        if cleaned_data.get('event_trigger_number') and cleaned_data.get('topic'):
-            raise forms.ValidationError('Topic filter cannot be used with LVC Trigger Number filter.')
+        # TODO: do we need to extend this method from the super?
+
         return cleaned_data
 
     @staticmethod
     def get_topic_choices():
-        # TODO: does this endpoint exist??
+        """The Hermes api/v0/topics endpoint return JSON of the form:
+        {'topics': [<list of topic strings]}
+
+        This method should return a list of tuples suitable for choices property
+        of a forms.MultipleChoiceField.
+        """
         response = requests.get(f'{HERMES_API_URL}/topics')
         response.raise_for_status()
-        return [(result['id'], result['name']) for result in response.json()['results']]
+        return [(topic_name, topic_name) for topic_name in response.json()['topics']]
 
 
 # TODO: Sort out "upstream" submission to Hopskotch functionality
@@ -87,55 +83,135 @@ class HermesQueryForm(GenericQueryForm):
 #    topic = forms.CharField(required=False, max_length=100, widget=forms.HiddenInput())
 #
 
+@dataclass
+class HermesNonLocalizedEventAlert:
+    """Represent a Hermes NonlocalizedEvent for display as query result.
+
+    HermesBroker._to_generic_alert does the translation
+    """
+    id: int # used for cache identification and retrieval 
+    event_id: str
+    nonlocalizedevent_id: int # PK of tom_nonlocalizedevent.model.NonLocalizedEvent (if exists)
+    title: str
+    sequence_type: str
+    sequence_number: int
+    hermes_url: str
+    gracedb_url: str
+    far: float # False Alarm Rate
+
+
 class HermesBroker(GenericBroker):
     """
     This is a prototype interface to the Hermes Alert API 
     """
 
-    name = 'HERMES'
+    name = 'Hermes'
     form = HermesQueryForm
+    score_description = "False Alarm Rate (FAR) from Nonlocalized Event message. (1.0 for retractions)."
     # TODO: Sort out "upstream" submission to Hopskotch functionality
     #alert_submission_form = SCIMMAUpstreamSubmissionForm
 
-    def _request_alerts(self, parameters):
-        # TODO: does this enpoint exist??
-        response = requests.get(f'{HERMES_API_URL}/alerts/',
+    # the tom_alerts/views.py::RunQueryView.get_template_names() method will ask
+    # this broker for the template to use for it's query results. Specify that here.
+    template_name = 'tom_hermes/query_result.html'
+
+    def get_broker_context_data(self, alerts):
+        """Provide Broker-specific data to context for RunQueryView's template
+
+        This method is called by RunQueryView.get_context_data with the alerts from
+        the broker.fetch_alerts method below. (The `alerts` passed in here is the iterable
+        returned from fetch_alerts).
+        """
+        # Report whether `tom_nonlocalizedevents` is installed.
+
+        broker_context_for_view = {
+            'salutation': 'All your Events are Belong to Us!',  # this was just for testing puposes
+            'tom_nonlocalizedevents_installed': apps.is_installed('tom_nonlocalizedevents'),
+            'version': __version__, # from tom_hermes/__init__.py
+        }
+
+        return broker_context_for_view
+
+    def _request_messages(self, parameters):
+        logger.debug(f'HermesBroker._request_messages()  parameters: {parameters}')
+        response = requests.get(f'{HERMES_API_URL}/nonlocalizedevents/',
                                 params={**parameters},
                                 headers=settings.BROKERS['HERMES'])
+        logger.debug(f'HermesBroker._request_messages() response.url: {response.url}')
         response.raise_for_status()
         return response.json()
 
     def fetch_alerts(self, parameters):
+        logger.debug(f'HermesBroker.fetch_alerts()  parameters: {parameters}')
         parameters['page_size'] = 20
-        result = self._request_alerts(parameters)
+        result = self._request_messages(parameters)
         return iter(result['results'])
 
-    def fetch_alert(self, alert_id):
-        # TODO: does this enpoint exist??
-        url = f'{HERMES_API_URL}/alerts/{alert_id}'
+    def fetch_message(self, message_id):
+        logger.debug(f'HermesBroker.fetch_message()  message_id: {message_id}')
+        url = f'{HERMES_API_URL}/messages/{message_id}'
         response = requests.get(url, headers=settings.BROKERS['HERMES'])
         response.raise_for_status()
-        parsed = response.json()
-        return parsed
+        json_data = response.json()
+        return json_data
 
-    def to_generic_alert(self, alert):
-        # TODO: re-consider how these topics are hard-coded
-        score = alert['message'].get('rank', 0) if alert['topic'] == 'lvc.lvc-counterpart' else ''
-        return GenericAlert(
-            # TODO: does this enpoint exist??
-            url=f'{HERMES_API_URL}/alerts/{alert["id"]}',
-            id=alert['id'],
-            # This should be the object name if it is in the comments
-            name=alert['alert_identifier'],
-            ra=alert['right_ascension'],
-            dec=alert['declination'],
-            timestamp=alert['alert_timestamp'],
-            # Well mag is not well defined for XRT sources...
-            mag=0.0,
-            score=score  # Not exactly what score means, but ish
-        )
+    def to_generic_alert(self, nonlocalizedevent):
+        """Map the Hermes Nonlocalized fields into GenericAlert fields.
 
+        Use the last messages in the event sequence.
+        """
+
+        # Gather the GenericAlert properties from the nonlocalizedevent
+        #  according to API V0 response
+        event_id = nonlocalizedevent['event_id']
+        url = f'{HERMES_URL}/nonlocalizedevent/{event_id}'
+        # Use the last message in the sequence to get values
+        message = nonlocalizedevent['sequences'][-1]['message'] # index -1 gives last in sequence
+        sequence_type = nonlocalizedevent['sequences'][-1]['sequence_type']
+        sequence_number = nonlocalizedevent['sequences'][-1]['sequence_number']
+        timestamp = message['published']
+        try:
+            gracedb_url = message['data']['eventpage_url'],
+        except KeyError:
+            # a RETRACTION does not have an eventpage_url so use the previous alert in the sequence
+            gracedb_url = nonlocalizedevent['sequences'][-2]['message']['data']['eventpage_url'],
+
+        # set score for this event as it's False Alarm Rate (far)
+        # Retractions won't have FAR, so provide default
+        far = float(message['data'].get('far', "1").split()[0])
+
+        # if tom_nonlocalizedevents is installed, then check if there is a
+        # tom_nonlocalizedevents.models.NonLocalizedEvent instance for this event_id.
+        # if so, return it's PK (for linking) as the id of the alert.
+        nle_id = None # if event is not found
+        if apps.is_installed('tom_nonlocalizedevents'):
+            # yes, it's unorthodox to import here
+            from tom_nonlocalizedevents.models import NonLocalizedEvent
+            nonlocalized_event = NonLocalizedEvent.objects.filter(event_id=event_id).first()
+            if nonlocalized_event is not None:
+                nle_id = nonlocalized_event.id
+        
+        # extract an ID value to use as a caching unique identifier
+#        cache_id = 0
+#        import uuid
+#        asdf: uuid.uuid4 = 
+
+        hermes_alert = HermesNonLocalizedEventAlert(
+            id=event_id,
+            event_id=event_id,
+            nonlocalizedevent_id=nle_id,
+            title=message['data']['title'],
+            sequence_type=sequence_type,
+            sequence_number=sequence_number,
+            hermes_url=url,
+            gracedb_url=gracedb_url,
+            far = far)
+
+        return hermes_alert
+
+    @DeprecationWarning
     def to_target(self, alert):
+        logger.debug(f'HermesBroker.to_target()  message: {alert}')
         # Galactic Coordinates come in the format:
         # "gal_coords": "76.19,  5.74 [deg] galactic lon,lat of the counterpart",
         gal_coords = [None, None]
@@ -143,7 +219,8 @@ class HermesBroker(GenericBroker):
         if alert['topic'] == 'lvc-counterpart':
             gal_coords = alert['message'].get('gal_coords', '').split('[')[0].split(',')
             gal_coords = [float(coord.strip()) for coord in gal_coords]
-        return Target.objects.create(
+
+        target = Target.objects.create(
             name=alert['alert_identifier'],
             type='SIDEREAL',
             ra=alert['right_ascension'],
@@ -151,6 +228,8 @@ class HermesBroker(GenericBroker):
             galactic_lng=gal_coords[0],
             galactic_lat=gal_coords[1],
         )
+
+        return target
 
 
 # TODO: submit_upstream_alert needs to be reconsidered from the ground up to use HERMES/TreasureMap
