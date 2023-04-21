@@ -7,6 +7,9 @@ on:
 jobs:
   publish_to_pypi:
     runs-on: ubuntu-latest
+    environment: release  # configured in repo Settings/Environments; referenced in PyPI OIDC
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-python@v2
@@ -17,8 +20,11 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install poetry
         poetry self add "poetry-dynamic-versioning[plugin]"
-    - name: Build package and publish to PyPi
+    - name: Build package with poetry
       run: |
         poetry build -f wheel
         poetry build -f sdist
-        poetry publish -u "__token__" -p '${{ secrets.PYPI_TOM_HERMES_API_TOKEN }}'
+      # poetry publish -u "__token__" -p '${{ secrets.PYPI_TOM_HERMES_API_TOKEN }}'
+    - name: Publish to PyPI with pypi-publish (trusted publishing)
+      uses: pypa/gh-action-pypi-publish@v1.8.5
+
