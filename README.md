@@ -31,4 +31,7 @@ Add `tom_hermes` to your `settings.INSTALLED_APPS`:
     ]
 ```
 
+Add `HERMES_API_URL` to your `settings.py` if you want to point to a hermes instance other than `https://hermes.lco.global`.
+This is the same settings variable that `tom_nonlocalizedevents` uses to make queries to hermes as well.
+
 `Hermes` is now available as a Broker from the TOM Toolkit Alerts page. You may configure and execute your queries as you would any Broker.

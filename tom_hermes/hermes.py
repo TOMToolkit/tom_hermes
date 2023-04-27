@@ -25,7 +25,7 @@ from tom_targets.models import Target
 logger = logging.getLogger(__name__)
 #logger.setLevel(logging.DEBUG)
 
-HERMES_URL = settings.HERMES_API_URL if hasattr(settings, 'HERMES_API_URL') else os.getenv('HERMES_BASE_URL', 'http://hermes.lco.global')
+HERMES_URL = settings.HERMES_API_URL if hasattr(settings, 'HERMES_API_URL') else os.getenv('HERMES_BASE_URL', 'https://hermes.lco.global')
 HERMES_API_VERSION = 0
 HERMES_API_URL = f'{HERMES_URL}/api/v{HERMES_API_VERSION}'
 
