@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import logging
 import os
 import requests
+from dateutil.parser import parse
 
 from crispy_forms.layout import Column, Fieldset, Layout, Row
 
@@ -24,19 +25,18 @@ from tom_targets.models import Target
 logger = logging.getLogger(__name__)
 #logger.setLevel(logging.DEBUG)
 
-HERMES_URL = os.getenv('HERMES_BASE_URL', 'http://hermes.lco.global')
+HERMES_URL = settings.HERMES_API_URL if hasattr(settings, 'HERMES_API_URL') else os.getenv('HERMES_BASE_URL', 'http://hermes.lco.global')
 HERMES_API_VERSION = 0
 HERMES_API_URL = f'{HERMES_URL}/api/v{HERMES_API_VERSION}'
 
 
 class HermesQueryForm(GenericQueryForm):
-    topic = forms.MultipleChoiceField(choices=[], required=False, label='Topic')
-    timestamp_after = forms.DateTimeField(required=False, label='Datetime lower',
-        #widget=forms.TextInput(attrs={'type': 'date'})
-        )
-    timestamp_before = forms.DateTimeField(required=False, label='Datetime upper',
-        #widget=forms.TextInput(attrs={'type': 'date'})
-        )
+    published_after = forms.CharField(required=False, label='Published after',
+        widget=forms.TextInput(attrs={'type': 'date'})
+    )
+    published_before = forms.CharField(required=False, label='Published before',
+        widget=forms.TextInput(attrs={'type': 'date'})
+    )
 
     event_id = forms.CharField(required=False, label='Hermes Event ID')
 
@@ -44,38 +44,32 @@ class HermesQueryForm(GenericQueryForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.fields['topic'].choices = self.get_topic_choices()
-
         self.helper.layout = Layout(
             self.common_layout,
             Fieldset(
                 'Time Filters',
                 Row(
-                    Column('timestamp_after'),
-                    Column('timestamp_before')
+                    Column('published_after'),
+                    Column('published_before')
                 )
             ),
             'event_id',
 
         )
 
+    def clean_published_after(self):
+        published_after = self.cleaned_data['published_after']
+        return parse(published_after).isoformat()
+
+    def clean_published_before(self):
+        published_before = self.cleaned_data['published_before']
+        return parse(published_before).isoformat()
+
     def clean(self):
         cleaned_data = super().clean()
         # TODO: do we need to extend this method from the super?
 
         return cleaned_data
-
-    @staticmethod
-    def get_topic_choices():
-        """The Hermes api/v0/topics endpoint return JSON of the form:
-        {'topics': [<list of topic strings]}
-
-        This method should return a list of tuples suitable for choices property
-        of a forms.MultipleChoiceField.
-        """
-        response = requests.get(f'{HERMES_API_URL}/topics')
-        response.raise_for_status()
-        return [(topic_name, topic_name) for topic_name in response.json()['topics']]
 
 
 # TODO: Sort out "upstream" submission to Hopskotch functionality
@@ -92,9 +86,9 @@ class HermesNonLocalizedEventAlert:
     id: int # used for cache identification and retrieval 
     event_id: str
     nonlocalizedevent_id: int # PK of tom_nonlocalizedevent.model.NonLocalizedEvent (if exists)
-    title: str
     sequence_type: str
     sequence_number: int
+    published: str
     hermes_url: str
     gracedb_url: str
     far: float # False Alarm Rate
@@ -125,7 +119,6 @@ class HermesBroker(GenericBroker):
         # Report whether `tom_nonlocalizedevents` is installed.
 
         broker_context_for_view = {
-            'salutation': 'All your Events are Belong to Us!',  # this was just for testing puposes
             'tom_nonlocalizedevents_installed': apps.is_installed('tom_nonlocalizedevents'),
             'version': __version__, # from tom_hermes/__init__.py
         }
@@ -135,8 +128,7 @@ class HermesBroker(GenericBroker):
     def _request_messages(self, parameters):
         logger.debug(f'HermesBroker._request_messages()  parameters: {parameters}')
         response = requests.get(f'{HERMES_API_URL}/nonlocalizedevents/',
-                                params={**parameters},
-                                headers=settings.BROKERS['HERMES'])
+                                params={**parameters})
         logger.debug(f'HermesBroker._request_messages() response.url: {response.url}')
         response.raise_for_status()
         return response.json()
@@ -150,7 +142,7 @@ class HermesBroker(GenericBroker):
     def fetch_message(self, message_id):
         logger.debug(f'HermesBroker.fetch_message()  message_id: {message_id}')
         url = f'{HERMES_API_URL}/messages/{message_id}'
-        response = requests.get(url, headers=settings.BROKERS['HERMES'])
+        response = requests.get(url)
         response.raise_for_status()
         json_data = response.json()
         return json_data
@@ -172,14 +164,19 @@ class HermesBroker(GenericBroker):
         sequence_type = nonlocalizedevent['sequences'][-1]['sequence_type']
         sequence_number = nonlocalizedevent['sequences'][-1]['sequence_number']
         try:
-            gracedb_url = message['data']['eventpage_url'],
+            gracedb_url = message['data'].get('urls', {}).get('gracedb', '')
         except KeyError:
             # a RETRACTION does not have an eventpage_url so use the previous alert in the sequence
-            gracedb_url = nonlocalizedevent['sequences'][-2]['message']['data']['eventpage_url'],
+            gracedb_url = nonlocalizedevent['sequences'][-2]['message']['data'].get('urls', {}).get('gracedb', '')
 
         # set score for this event as it's False Alarm Rate (far)
         # Retractions won't have FAR, so provide default
-        far = float(message['data'].get('far', "1").split()[0])
+        if message['data'].get('event', {}):
+            far = float(message['data'].get('event', {}).get('far', 1))
+        else:
+            far = 1
+
+        published = parse(message['published'])
 
         # if tom_nonlocalizedevents is installed, then check if there is a
         # tom_nonlocalizedevents.models.NonLocalizedEvent instance for this event_id.
@@ -196,7 +193,7 @@ class HermesBroker(GenericBroker):
             id=event_id,
             event_id=event_id,
             nonlocalizedevent_id=nle_id,
-            title=message['data']['title'],
+            published=published.strftime('%d/%m/%Y %H:%M:%S'),
             sequence_type=sequence_type,
             sequence_number=sequence_number,
             hermes_url=url,
