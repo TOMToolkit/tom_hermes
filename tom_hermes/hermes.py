@@ -53,8 +53,10 @@ class HermesQueryForm(GenericQueryForm):
                     Column('published_before')
                 )
             ),
-            'event_id',
-
+            Fieldset(
+                'Event Filters',
+                'event_id',
+            ),
         )
 
     def clean_published_after(self):
