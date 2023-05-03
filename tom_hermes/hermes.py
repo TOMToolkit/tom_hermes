@@ -61,11 +61,23 @@ class HermesQueryForm(GenericQueryForm):
 
     def clean_published_after(self):
         published_after = self.cleaned_data['published_after']
-        return parse(published_after).isoformat()
+
+        # this field is optional, so only parse it if there's a value to parse
+        clean_published_after = ''
+        if published_after:
+            clean_published_after = parse(published_after).isoformat()
+
+        return clean_published_after
 
     def clean_published_before(self):
         published_before = self.cleaned_data['published_before']
-        return parse(published_before).isoformat()
+
+        # this field is optional, so only parse it if there's a value to parse
+        clean_published_before = ''
+        if published_before:
+            clean_published_before = parse(published_before).isoformat()
+
+        return clean_published_before
 
     def clean(self):
         cleaned_data = super().clean()
