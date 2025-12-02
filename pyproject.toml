@@ -1,17 +1,19 @@
-[tool.poetry]
+[project]
 name = "tom-hermes"
+description = "A TOM Toolkit Broker module for querying the Hermes Alert API"
+authors = [{name = "Lindy Lindstrom", email = "llindstrom@lco.global"}]
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
 # this version is a placeholder: version supplied by poetry-dynamic-versioning
 version = "0.0.0"
-description = "A TOM Toolkit Broker module for querying the Hermes Alert API"
-authors = ["Lindy Lindstrom <llindstrom@lco.global>"]
-readme = "README.md"
-license = "GPL-3.0-or-later"
+dynamic = ["version"]
+requires-python = ">=3.9.0,<3.13"
+dependencies = [
+    "tomtoolkit >=2.10"
+]
 
+[tool.poetry]
 packages = [{include = "tom_hermes"}]
-
-[tool.poetry.dependencies]
-python = ">=3.8,<3.12"
-tomtoolkit = "^2.10"
 
 [tool.poetry-dynamic-versioning]
 enable = true
