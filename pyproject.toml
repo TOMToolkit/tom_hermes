@@ -5,7 +5,6 @@ authors = [{name = "Lindy Lindstrom", email = "llindstrom@lco.global"}]
 readme = "README.md"
 license = {text = "GPL-3.0-or-later"}
 # this version is a placeholder: version supplied by poetry-dynamic-versioning
-version = "0.0.0"
 dynamic = ["version"]
 requires-python = ">=3.9.0,<3.13"
 dependencies = [
@@ -14,6 +13,7 @@ dependencies = [
 
 [tool.poetry]
 packages = [{include = "tom_hermes"}]
+version = "0.0.0" # version supplied by poetry-dynamic-versioning
 
 [tool.poetry.requires-plugins]
 poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
