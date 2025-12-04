@@ -15,6 +15,9 @@ dependencies = [
 packages = [{include = "tom_hermes"}]
 version = "0.0.0" # version supplied by poetry-dynamic-versioning
 
+[tool.poetry.group.lint.dependencies]
+flake8 = ">=6.0,<7.4"
+
 [tool.poetry.requires-plugins]
 poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
 
