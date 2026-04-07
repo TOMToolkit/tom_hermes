@@ -13,33 +13,35 @@ from django.conf import settings
 from tom_hermes import __version__
 
 # TODO: these imports are for upstream alerting which needs to be re-considered
-#from confluent_kafka import KafkaException
-#from hop import Stream
-#from hop.auth import Auth
-#from tom_alerts.exceptions import AlertSubmissionException
-#from tom_alerts.alerts import GenericUpstreamSubmissionForm
+# from confluent_kafka import KafkaException
+# from hop import Stream
+# from hop.auth import Auth
+# from tom_alerts.exceptions import AlertSubmissionException
+# from tom_alerts.alerts import GenericUpstreamSubmissionForm
 
 from tom_alerts.alerts import GenericBroker, GenericQueryForm
 from tom_targets.models import Target
 
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
-HERMES_URL = settings.HERMES_API_URL if hasattr(settings, 'HERMES_API_URL') else os.getenv('HERMES_BASE_URL', 'https://hermes.lco.global')
+HERMES_URL = (settings.HERMES_API_URL if hasattr(settings, 'HERMES_API_URL')
+              else os.getenv('HERMES_BASE_URL', 'https://hermes.lco.global'))
 HERMES_API_VERSION = 0
 HERMES_API_URL = f'{HERMES_URL}/api/v{HERMES_API_VERSION}'
 
 
 class HermesQueryForm(GenericQueryForm):
-    published_after = forms.CharField(required=False, label='Published after',
+    published_after = forms.CharField(
+        required=False, label='Published after',
         widget=forms.TextInput(attrs={'type': 'date'})
     )
-    published_before = forms.CharField(required=False, label='Published before',
+    published_before = forms.CharField(
+        required=False, label='Published before',
         widget=forms.TextInput(attrs={'type': 'date'})
     )
 
     event_id = forms.CharField(required=False, label='Hermes Event ID')
-
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -87,7 +89,7 @@ class HermesQueryForm(GenericQueryForm):
 
 
 # TODO: Sort out "upstream" submission to Hopskotch functionality
-#class SCIMMAUpstreamSubmissionForm(GenericUpstreamSubmissionForm):
+# class SCIMMAUpstreamSubmissionForm(GenericUpstreamSubmissionForm):
 #    topic = forms.CharField(required=False, max_length=100, widget=forms.HiddenInput())
 #
 
@@ -97,27 +99,27 @@ class HermesNonLocalizedEventAlert:
 
     HermesBroker._to_generic_alert does the translation
     """
-    id: int # used for cache identification and retrieval 
+    id: int  # used for cache identification and retrieval
     event_id: str
-    nonlocalizedevent_id: int # PK of tom_nonlocalizedevent.model.NonLocalizedEvent (if exists)
+    nonlocalizedevent_id: int  # PK of tom_nonlocalizedevent.model.NonLocalizedEvent (if exists)
     sequence_type: str
     sequence_number: int
     published: str
     hermes_url: str
     gracedb_url: str
-    far: float # False Alarm Rate
+    far: float  # False Alarm Rate
 
 
 class HermesBroker(GenericBroker):
     """
-    This is a prototype interface to the Hermes Alert API 
+    This is a prototype interface to the Hermes Alert API
     """
 
     name = 'Hermes'
     form = HermesQueryForm
     score_description = "False Alarm Rate (FAR) from Nonlocalized Event message. (1.0 for retractions)."
     # TODO: Sort out "upstream" submission to Hopskotch functionality
-    #alert_submission_form = SCIMMAUpstreamSubmissionForm
+    # alert_submission_form = SCIMMAUpstreamSubmissionForm
 
     # the tom_alerts/views.py::RunQueryView.get_template_names() method will ask
     # this broker for the template to use for it's query results. Specify that here.
@@ -134,7 +136,7 @@ class HermesBroker(GenericBroker):
 
         broker_context_for_view = {
             'tom_nonlocalizedevents_installed': apps.is_installed('tom_nonlocalizedevents'),
-            'version': __version__, # from tom_hermes/__init__.py
+            'version': __version__,  # from tom_hermes/__init__.py
         }
 
         return broker_context_for_view
@@ -174,7 +176,7 @@ class HermesBroker(GenericBroker):
         event_id = nonlocalizedevent['event_id']
         url = f'{HERMES_URL}/nonlocalizedevent/{event_id}'
         # Use the last message in the sequence to get values
-        message = nonlocalizedevent['sequences'][-1]['message'] # index -1 gives last in sequence
+        message = nonlocalizedevent['sequences'][-1]['message']  # index -1 gives last in sequence
         sequence_type = nonlocalizedevent['sequences'][-1]['sequence_type']
         sequence_number = nonlocalizedevent['sequences'][-1]['sequence_number']
         try:
@@ -195,14 +197,14 @@ class HermesBroker(GenericBroker):
         # if tom_nonlocalizedevents is installed, then check if there is a
         # tom_nonlocalizedevents.models.NonLocalizedEvent instance for this event_id.
         # if so, return it's PK (for linking) as the id of the alert.
-        nle_id = None # if event is not found
+        nle_id = None  # if event is not found
         if apps.is_installed('tom_nonlocalizedevents'):
             # yes, it's unorthodox to import here
             from tom_nonlocalizedevents.models import NonLocalizedEvent
             nonlocalized_event = NonLocalizedEvent.objects.filter(event_id=event_id).first()
             if nonlocalized_event is not None:
                 nle_id = nonlocalized_event.id
-        
+
         hermes_alert = HermesNonLocalizedEventAlert(
             id=event_id,
             event_id=event_id,
@@ -212,7 +214,7 @@ class HermesBroker(GenericBroker):
             sequence_number=sequence_number,
             hermes_url=url,
             gracedb_url=gracedb_url,
-            far = far)
+            far=far)
 
         return hermes_alert
 
@@ -288,4 +290,3 @@ class HermesBroker(GenericBroker):
 #            raise AlertSubmissionException(f'Submission to Hopskotch failed: {e}')
 #
 #        return True
-#
