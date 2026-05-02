@@ -1,0 +1,8 @@
+{# Advanced HERMES query form: search + topics multi-select + date filters. #}
+{# Same dispatch as hermes_simple_form.html; the "Topics" multi-select is populated #}
+{# at form-init time from HERMES (cached for an hour per HermesDataService.get_topic_choices). #}
+{% load bootstrap4 %}
+{% bootstrap_field form.search %}
+{% bootstrap_field form.topics %}
+{% bootstrap_field form.published_after %}
+{% bootstrap_field form.published_before %}
