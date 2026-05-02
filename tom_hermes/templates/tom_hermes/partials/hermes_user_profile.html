@@ -1,0 +1,45 @@
+{# HERMES card on the user-profile page. #}
+{# #}
+{# Rendered by the `hermes_profile_data` inclusion tag #}
+{# (tom_hermes/templatetags/hermes_extras.py), which is invoked by #}
+{# `tom_common.templatetags.user_extras.show_app_profiles` for every app #}
+{# that registers a `profile_details` integration point. #}
+{# #}
+{# Context (from hermes_profile_data): #}
+{#   user               — the logged-in User. #}
+{#   hermes_profile     — the User's HermesProfile instance. #}
+{#   profile_data_list  — list of {label, value} dicts, one row per displayable field. #}
+{#                        Encrypted values are masked to '[set]' / '[not set]'; #}
+{#                        the raw credential is never rendered here. #}
+<div class="card">
+    <div class="card-header bg-dark text-light">
+        <div style="display: flex; justify-content: space-between">
+            <h4 class="card-title">HERMES Credentials</h4>
+            <div>
+                <a
+                    title="Edit"
+                    href="{% url 'tom_hermes:hermes-profile-update' pk=hermes_profile.id %}"
+                    ><i class="fa fa-pencil" aria-hidden="true"></i
+                ></a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <p>
+            Per-user HERMES credentials used for publishing and (when configured)
+            subscribing. When empty, the TOM falls back to the TOM-wide credentials
+            configured in <code>settings.DATA_SHARING['hermes']</code>.
+        </p>
+        <hr />
+        <dl class="row">
+            {% for field_data in profile_data_list %}
+                {% if field_data.value %}
+                    <dt class="col-sm-6">{{ field_data.label }}</dt>
+                    <dd class="col-sm-6">{{ field_data.value }}</dd>
+                {% endif %}
+            {% empty %}
+                <p>No HERMES profile items yet for this user.</p>
+            {% endfor %}
+        </dl>
+    </div>
+</div>
