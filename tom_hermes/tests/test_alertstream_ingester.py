@@ -115,8 +115,14 @@ class HermesAlertHandlerWrapsIngestTests(TestCase):
 
     def test_handler_forwards_to_ingest_function(self):
         # We patch ingest_hermes_alert where the handler imports it so the
-        # real DB writes are not attempted.
+        # real DB writes are not attempted. The mock returns the empty-summary
+        # shape the handler reads its log-line counts from.
         with patch.object(ingester, 'ingest_hermes_alert') as ingest_mock:
+            ingest_mock.return_value = {
+                'targets': [],
+                'reduced_datums': [],
+                'data_products': [],
+            }
             metadata = object()  # opaque stand-in for hop.models.Metadata
             hermes_alert_handler('some-alert', metadata)
         ingest_mock.assert_called_once_with(alert='some-alert', metadata=metadata)

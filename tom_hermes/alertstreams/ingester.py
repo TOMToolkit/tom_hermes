@@ -365,13 +365,32 @@ def hermes_alert_handler(alert, metadata):
     for every message on a subscribed topic. Discards the summary returned
     by ``ingest_hermes_alert`` because the stream consumer does not need it.
 
+    Logs at INFO level on every receipt and on every successful ingest.
+    Without these the consumer is silent on the happy path: the
+    upstream ``HopskotchAlertStream.listen()`` itself only logs the
+    subscription line at startup, and ``ingest_hermes_alert`` only emits
+    ``logger.warning`` on errors, so a working stream produces zero
+    visible feedback. The ``sys.heartbeat`` topic's handler logs every
+    heartbeat by design; this matches that pattern for HERMES messages.
+
     Requirements in the TOM's settings:
 
     - ``tom_alertstreams`` in ``INSTALLED_APPS``.
     - ``ALERT_STREAMS.TOPIC_HANDLERS`` mapping the HERMES topic(s) to this
       function's dotted path.
     """
-    ingest_hermes_alert(alert=alert, metadata=metadata)
+    topic = getattr(metadata, 'topic', '<no metadata>')
+    logger.info(f'hermes_alert_handler: received message on topic={topic}')
+    summary = ingest_hermes_alert(alert=alert, metadata=metadata)
+    targets_count = len(summary.get('targets') or [])
+    reduced_datums_count = len(summary.get('reduced_datums') or [])
+    data_products_count = len(summary.get('data_products') or [])
+    logger.info(
+        f'hermes_alert_handler: ingested topic={topic} '
+        f'targets={targets_count} '
+        f'reduced_datums={reduced_datums_count} '
+        f'data_products={data_products_count}'
+    )
 
 
 def _get_spectroscopy_file_url(file_info_list):

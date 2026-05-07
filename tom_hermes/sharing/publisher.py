@@ -379,6 +379,16 @@ def publish_to_hermes(message_info, datums, targets=None, *, user=None, **kwargs
             logger.error(response.content)
         return response if response is not None else {'message': f'ERROR: {ex!r}'}
 
+    # Log a one-line summary of the successful publish. Without this the
+    # only operator-visible signal in the runserver log is the bare
+    # ``POST /share/ ... 302`` from Django's request log; the
+    # HERMES-assigned uuid (the message id we publish under) is otherwise
+    # invisible to the operator.
+    message_uuid = response.json().get('uuid', '<no-uuid>')
+    logger.info(
+        f'publish_to_hermes: published topic={message_info.topic} '
+        f'message_uuid={message_uuid}'
+    )
     return response
 
 
