@@ -9,11 +9,12 @@ HERMES credential lookup: per-user profile, falling back to TOM-wide settings.
 ### Where it lives
 
 At the app root rather than inside ``tom_hermes.sharing`` because
-credentials are not a sharing-only concern. Today only ``sharing`` calls
-it; forward-looking, ``alertstreams`` will want it for per-user Hopskotch
-subscription (the ``HermesProfile`` already has ``hop_username`` /
-``hop_password`` fields for that), and ``dataservices`` may want it if
-the HERMES archive endpoint ever requires authentication.
+credentials are not a sharing-only concern. Today both ``sharing``
+and ``dataservices`` call it. A future per-user Hopskotch
+subscription path would add Kafka SCRAM credentials to the
+``HermesProfile`` and to the dict this function returns; today the
+SCRAM creds for ``readstreams`` come from
+``settings.ALERT_STREAMS[...]['OPTIONS']`` only.
 
 ### Lookup order
 
@@ -42,10 +43,10 @@ from tom_hermes.models import HermesProfile
 def resolve_hermes_credentials(user=None) -> dict:
     """Return the HERMES credentials dict to use for this User.
 
-    Returns a dict with keys ``'api_key'``, ``'base_url'``, ``'hop_username'``,
-    ``'hop_password'``. Values default to ``None`` if neither the user's
-    Profile nor ``settings.DATA_SHARING['hermes']`` provides them;
-    ``'base_url'`` falls back to ``'https://hermes.lco.global/'``.
+    Returns a dict with keys ``'api_key'`` and ``'base_url'``. Values
+    default to ``None`` if neither the user's Profile nor
+    ``settings.DATA_SHARING['hermes']`` provides them; ``'base_url'``
+    falls back to ``'https://hermes.lco.global/'``.
 
     Reading an ``EncryptedProperty`` off ``HermesProfile`` requires the
     Django session cipher — which is bound to an authenticated request.
@@ -56,8 +57,6 @@ def resolve_hermes_credentials(user=None) -> dict:
     result = {
         'api_key': None,
         'base_url': None,
-        'hop_username': None,
-        'hop_password': None,
     }
 
     # Per-user path: only if the request carries an authenticated User and
@@ -72,13 +71,8 @@ def resolve_hermes_credentials(user=None) -> dict:
             # being configured).
             from tom_common.session_utils import get_encrypted_field
             api_key = get_encrypted_field(user, profile, 'hermes_api_key')
-            hop_pw = get_encrypted_field(user, profile, 'hop_password')
             if api_key:
                 result['api_key'] = api_key
-            if profile.hop_username:
-                result['hop_username'] = profile.hop_username
-            if hop_pw:
-                result['hop_password'] = hop_pw
 
     # TOM-wide fallback: settings.DATA_SHARING['hermes']. Always consulted
     # for base_url (which is rarely per-user). Consulted for api_key only

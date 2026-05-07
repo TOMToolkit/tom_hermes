@@ -30,13 +30,6 @@ class Migration(migrations.Migration):
                     auto_created=True, primary_key=True, serialize=False, verbose_name='ID',
                 )),
                 ('_hermes_api_key_encrypted', models.BinaryField(blank=True, null=True)),
-                ('hop_username', models.CharField(
-                    blank=True, max_length=255, null=True, verbose_name='Hopskotch Username',
-                )),
-                ('_hop_password_encrypted', models.BinaryField(blank=True, null=True)),
-                ('default_topics', models.JSONField(
-                    blank=True, default=list, verbose_name='Default HERMES Topics',
-                )),
                 ('user', models.OneToOneField(
                     on_delete=models.deletion.CASCADE, to=settings.AUTH_USER_MODEL,
                 )),

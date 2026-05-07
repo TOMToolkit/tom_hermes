@@ -57,8 +57,8 @@ class HermesProfileViewTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        # The update form has a hop_username field rendered as an <input>.
-        self.assertContains(response, 'name="hop_username"')
+        # The update form has the hermes_api_key field rendered as a password input.
+        self.assertContains(response, 'name="hermes_api_key"')
 
 
 class HermesProfileFormSaveTests(TestCase):
@@ -69,11 +69,10 @@ class HermesProfileFormSaveTests(TestCase):
         self.profile = HermesProfile.objects.create(user=self.user)
 
     def test_blank_encrypted_field_does_not_call_set_encrypted_field(self):
-        # Submit with hop_username filled in but API key / password blank.
-        # set_encrypted_field is mocked so no session cipher is needed.
+        # Submit with the API key blank. set_encrypted_field is mocked so
+        # no session cipher is needed.
         form = HermesProfileForm(
-            data={'hop_username': 'alice', 'default_topics': '[]',
-                  'hermes_api_key': '', 'hop_password': ''},
+            data={'hermes_api_key': ''},
             instance=self.profile,
             user=self.user,
         )
@@ -81,21 +80,16 @@ class HermesProfileFormSaveTests(TestCase):
         with patch('tom_hermes.forms.set_encrypted_field') as set_mock:
             form.save()
         set_mock.assert_not_called()
-        # The plain field did get saved.
-        self.profile.refresh_from_db()
-        self.assertEqual(self.profile.hop_username, 'alice')
 
     def test_non_blank_encrypted_field_calls_set_encrypted_field(self):
         form = HermesProfileForm(
-            data={'hop_username': 'alice', 'default_topics': '[]',
-                  'hermes_api_key': 'new-key', 'hop_password': ''},
+            data={'hermes_api_key': 'new-key'},
             instance=self.profile,
             user=self.user,
         )
         self.assertTrue(form.is_valid(), msg=form.errors)
         with patch('tom_hermes.forms.set_encrypted_field', return_value=True) as set_mock:
             form.save()
-        # Only hermes_api_key is set; hop_password was blank and should be skipped.
         self.assertEqual(set_mock.call_count, 1)
         call_args = set_mock.call_args.args
         # Args: (user, instance, field_name, value)

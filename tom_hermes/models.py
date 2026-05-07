@@ -19,8 +19,8 @@ No deprecation warning attaches to the settings fallback.
 
 ### Encryption
 
-Secrets (``hermes_api_key``, ``hop_password``) are encrypted at rest using
-the Fernet-backed session cipher that ``tom_common.models.EncryptableModelMixin``
+The ``hermes_api_key`` secret is encrypted at rest using the
+Fernet-backed session cipher that ``tom_common.models.EncryptableModelMixin``
 / ``EncryptedProperty`` provides. The cipher key is derived from the User's
 login password via PBKDF2-HMAC and lives in the Django session, not in
 settings. See ``tom_common.session_utils``. Reading an encrypted field
@@ -60,28 +60,6 @@ class HermesProfile(EncryptableModelMixin, models.Model):
     # Used by ``publish_to_hermes`` when the User publishes data to HERMES.
     _hermes_api_key_encrypted = models.BinaryField(null=True, blank=True)
     hermes_api_key = EncryptedProperty('_hermes_api_key_encrypted')
-
-    # Hopskotch SCRAM username — per-user identity for kafka.scimma.org.
-    # Not a secret, so stored as a plain CharField. Paired with the
-    # encrypted ``hop_password`` descriptor below.
-    hop_username = models.CharField(
-        max_length=255, null=True, blank=True, verbose_name='Hopskotch Username',
-    )
-
-    # Hopskotch SCRAM password — the secret half of the kafka.scimma.org
-    # credential pair. Used by the ``hop-client`` authentication path
-    # that the stream consumer sets up.
-    _hop_password_encrypted = models.BinaryField(null=True, blank=True)
-    hop_password = EncryptedProperty('_hop_password_encrypted')
-
-    # Default topics the User is allowed to publish to. Populated from
-    # HERMES ``/api/v0/profile/`` once per form render (see
-    # ``tom_hermes.sharing.get_hermes_topics``). JSONField rather than a
-    # M2M because the topic list is a per-user HERMES state, not a set of
-    # TOM-side relations.
-    default_topics = models.JSONField(
-        default=list, blank=True, verbose_name='Default HERMES Topics',
-    )
 
     def __str__(self) -> str:
         return f'{self.user.username} HERMES Profile'

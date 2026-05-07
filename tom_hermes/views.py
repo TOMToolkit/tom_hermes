@@ -34,7 +34,7 @@ class HermesProfileUpdateView(LoginRequiredMixin, UpdateView):
     model = HermesProfile
     template_name = 'tom_hermes/hermes_update_user_profile.html'
 
-    # Custom form class handles the two encrypted fields (hermes_api_key, hop_password).
+    # Custom form class handles the encrypted hermes_api_key field.
     form_class = HermesProfileForm
 
     def get_form_kwargs(self):

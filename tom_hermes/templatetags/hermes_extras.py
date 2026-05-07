@@ -55,24 +55,10 @@ def hermes_profile_data(user) -> dict:
 
     profile_data_list: list = []
 
-    # Plain (non-encrypted) fields: render the value directly.
-    for field_name in ('hop_username',):
-        field = profile._meta.get_field(field_name)
-        value = getattr(profile, field_name) or '[not set]'
-        profile_data_list.append({'label': field.verbose_name, 'value': value})
-
-    # default_topics is a list; render its length so the card shows at a
-    # glance whether any topics are configured without revealing them all.
-    topics = profile.default_topics or []
-    profile_data_list.append({
-        'label': profile._meta.get_field('default_topics').verbose_name,
-        'value': f'{len(topics)} configured' if topics else '[none]',
-    })
-
     # Encrypted fields: never render the actual value on the profile page.
     # We only indicate whether a value is set, to protect the secret from
     # shoulder-surfing and from any future page-capture / logging.
-    for encrypted_field_name in ('hermes_api_key', 'hop_password'):
+    for encrypted_field_name in ('hermes_api_key',):
         label = HermesProfileForm.base_fields[encrypted_field_name].label
         # get_encrypted_field can return None when the session cipher is
         # unavailable; we treat that the same as "not set" for display.
