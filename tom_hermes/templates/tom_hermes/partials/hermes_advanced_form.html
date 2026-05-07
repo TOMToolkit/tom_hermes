@@ -1,8 +1,44 @@
 {# Advanced HERMES query form: search + topics multi-select + date filters. #}
 {# Same dispatch as hermes_simple_form.html; the "Topics" multi-select is populated #}
-{# at form-init time from HERMES (cached for an hour per HermesDataService.get_topic_choices). #}
+{# at form-init time from HERMES (cached for a day per HermesDataService.get_topic_choices). #}
 {% load bootstrap4 %}
+<style>
+    /* Lay out the long ``topics`` checkbox list in two columns rather than
+       a single tall column. ``column-count: 2`` is fixed; some HERMES
+       topic names are long enough that wider column counts cause labels
+       to overlap. ``column-width: 200px`` sets the minimum column width,
+       so narrow viewports drop to 1 column automatically without media
+       queries. */
+    #id_topics {
+        column-count: 2;
+        column-width: 200px;
+        column-gap: 1.5em;
+        list-style: none;
+        padding-left: 0;
+    }
+    /* Each topic <li> renders as ``<input> label``. ``break-inside: avoid``
+       keeps a single topic on one line within one column rather than letting
+       its label wrap into the next column. */
+    #id_topics li {
+        break-inside: avoid;
+    }
+</style>
 {% bootstrap_field form.search %}
-{% bootstrap_field form.topics %}
+{% comment %}
+Render ``topics`` manually so the help text appears between the label
+and the (long) checkbox grid rather than after it, where it is easy to
+miss. We can't use ``bootstrap_field`` here because that helper only
+renders help text below the field.
+{% endcomment %}
+<div class="form-group">
+    <label class="control-label" for="id_topics">{{ form.topics.label }}</label>
+    {% if form.topics.help_text %}
+        <small class="form-text text-muted">{{ form.topics.help_text }}</small>
+    {% endif %}
+    {{ form.topics }}
+    {% for error in form.topics.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+    {% endfor %}
+</div>
 {% bootstrap_field form.published_after %}
 {% bootstrap_field form.published_before %}
