@@ -17,7 +17,6 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from tom_alerts.models import AlertStreamMessage
 from tom_dataproducts.models import ReducedDatum
 from tom_hermes.alertstreams import ingester
 from tom_hermes.alertstreams.ingester import hermes_alert_handler, ingest_hermes_alert
@@ -69,12 +68,12 @@ class IngestHermesAlertTests(TestCase):
         # One ReducedDatum was created, attached to that Target.
         datum = ReducedDatum.objects.get(target=target, data_type='photometry')
         self.assertEqual(datum.value['magnitude'], 20.0)
-        # The AlertStreamMessage record ties the datum to this ingestion
-        # so a later publish knows not to re-emit it.
-        self.assertEqual(datum.message.count(), 1)
-        asm = datum.message.first()
-        self.assertEqual(asm.topic, 'test.hermes.photometry')
-        self.assertEqual(asm.exchange_status, 'ingested')
+        # Provenance lives on source_name + source_location so a later
+        # share knows the datum came from this HERMES topic and the
+        # consumer can fetch the original message body via the API URL.
+        self.assertEqual(datum.source_name, 'Hermes:test.hermes.photometry')
+        self.assertTrue(datum.source_location.endswith(
+            f'/api/v0/query/message/{PHOTOMETRY_MESSAGE["uuid"]}/'))
         # Summary shape: callers (notably HermesDataService.to_target) read
         # these keys, so check they are populated as the docstring says.
         # Compare by pk rather than instance identity because the summary's
@@ -84,30 +83,31 @@ class IngestHermesAlertTests(TestCase):
         self.assertEqual(summary['targets'][0].pk, target.pk)
         self.assertEqual(len(summary['reduced_datums']), 1)
         self.assertEqual(summary['reduced_datums'][0].pk, datum.pk)
-        self.assertIsNotNone(summary['alert_stream_message'])
 
     def test_second_ingest_of_same_message_is_noop(self):
-        # Idempotence: the AlertStreamMessage lookup short-circuits the
-        # second call so no duplicate Targets or ReducedDatums are created.
+        # Idempotence: per-row, via ReducedDatum.objects.get_or_create()
+        # keyed on (target, data_type, timestamp, value). Re-ingesting the
+        # same message creates no duplicate Targets or ReducedDatums.
         ingest_hermes_alert(_message())
         second = ingest_hermes_alert(_message())
         self.assertEqual(Target.objects.filter(name='SN_test_001').count(), 1)
         self.assertEqual(ReducedDatum.objects.filter(data_type='photometry').count(), 1)
-        # On the duplicate call the summary has no new rows but still
-        # reports the AlertStreamMessage (already-ingested marker) so
-        # the caller can tell this was a no-op, not a failure.
-        self.assertEqual(second['targets'], [])
+        # The second call resolves the matched Target through resolve_target
+        # so it appears in summary['targets'], but no new ReducedDatum was
+        # created so summary['reduced_datums'] is empty.
+        self.assertEqual(len(second['targets']), 1)
+        self.assertEqual(second['targets'][0].name, 'SN_test_001')
         self.assertEqual(second['reduced_datums'], [])
-        self.assertIsNotNone(second['alert_stream_message'])
 
     def test_empty_message_returns_empty_summary(self):
         # A message with no photometry and no spectroscopy is a legitimate
         # shape (e.g. target-only); the function must return cleanly
-        # without creating an AlertStreamMessage.
+        # with no Targets or ReducedDatums.
         summary = ingest_hermes_alert({'uuid': 'u', 'topic': 't', 'data': {}})
-        self.assertIsNone(summary['alert_stream_message'])
         self.assertEqual(summary['targets'], [])
-        self.assertEqual(AlertStreamMessage.objects.count(), 0)
+        self.assertEqual(summary['reduced_datums'], [])
+        self.assertEqual(Target.objects.count(), 0)
+        self.assertEqual(ReducedDatum.objects.count(), 0)
 
 
 class HermesAlertHandlerWrapsIngestTests(TestCase):

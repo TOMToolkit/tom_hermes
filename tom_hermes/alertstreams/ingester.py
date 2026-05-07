@@ -23,26 +23,29 @@ same message ingested later from the archive.
 
 ### Idempotence
 
-Each ingestion registers (or fetches) an ``AlertStreamMessage`` keyed by
-``(topic, message_id, exchange_status='ingested')``. If the ``AlertStreamMessage``
-already exists, ``ingest_hermes_alert`` returns without re-creating any rows.
-``topic`` and ``message_id`` come from hop-client metadata when present,
-otherwise from the message body (``alert_as_dict['topic']`` / ``alert_as_dict['uuid']``).
-The fallback to ``uuid.uuid4()`` when neither source has a UUID is a
-last-resort that defeats idempotence; callers that care should ensure the
-HERMES message payload includes its own ``uuid`` field.
+Per-row, via ``ReducedDatum.objects.get_or_create()`` keyed on
+``(target, data_type, timestamp, value)`` and ``DataProduct.objects.get_or_create()``
+keyed on ``product_id`` (the file URL, for downloaded spectroscopy
+files). Re-ingesting the same message returns existing rows; nothing
+is duplicated.
+
+### Provenance
+
+Each ReducedDatum carries ``source_name = f'Hermes:{topic}'`` and
+``source_location = f'{hermes_base_url}/api/v0/query/message/{alert_id}/'``,
+the per-message HERMES API URL. ``tom_dataproducts.sharing.check_for_share_safe_datums``
+uses ``source_name`` to prevent re-publishing a datum to its origin topic.
 
 ### Return value
 
 Returns a summary dict::
 
     {
-        'targets':              [Target, ...],        # Targets created or matched
-        'reduced_datums':       [ReducedDatum, ...],  # photometry/spectroscopy rows created
-        'data_products':        [DataProduct, ...],   # spectroscopy files downloaded
-        'target_extras':        {...},                # extras for the first target
-        'aliases':              [str, ...],           # aliases for the first target
-        'alert_stream_message': AlertStreamMessage | None,
+        'targets':        [Target, ...],         # Targets created or matched
+        'reduced_datums': [ReducedDatum, ...],   # newly-created rows only
+        'data_products':  [DataProduct, ...],    # newly-downloaded spectroscopy files only
+        'target_extras':  {...},                 # extras for the first target
+        'aliases':        [str, ...],            # aliases for the first target
     }
 
 Callers that want a single Target (the DataService framework's ``to_target``
@@ -73,7 +76,6 @@ from dateutil.parser import parse
 from django.conf import settings
 from django.core.files import File
 
-from tom_alerts.models import AlertStreamMessage
 from tom_dataproducts.data_processor import run_data_processor
 from tom_dataproducts.models import DataProduct, ReducedDatum
 from tom_targets.models import Target, TargetList
@@ -94,9 +96,7 @@ def get_or_create_uuid_from_metadata(metadata) -> uuid.UUID:
     UUID.
 
     If the metadata has no ``_id`` header we generate a fresh uuid4 so the
-    caller can still create an ``AlertStreamMessage`` — but idempotence is
-    defeated for that call, because the next ingest of the same message
-    will generate a different UUID.
+    caller still has an alert_id to embed in ``source_location``.
     """
     message_uuid_tuple = None
     if metadata.headers:
@@ -145,7 +145,6 @@ def _empty_summary() -> dict:
         'data_products': [],
         'target_extras': {},
         'aliases': [],
-        'alert_stream_message': None,
     }
 
 
@@ -157,18 +156,16 @@ def ingest_hermes_alert(alert, metadata=None) -> dict:
     1. Normalize the input. ``alert`` may be a hop-client ``JSONBlob``-like
        object (has ``.content``) or a plain dict (DataService query result).
     2. Resolve the alert UUID and topic (see ``_resolve_alert_identity``).
-    3. Fetch or create the ``AlertStreamMessage`` that tracks whether this
-       message has been ingested. If it already exists, return early; this
-       is the idempotence guard.
-    4. For each photometry row: resolve (or create) the Target by matching
+    3. For each photometry row: resolve (or create) the Target by matching
        on name/aliases; look up or create the ``ReducedDatum`` with
-       ``data_type='photometry'``; tag it with the AlertStreamMessage.
-    5. For each spectroscopy row: if it carries a file URL in ``file_info``,
+       ``data_type='photometry'``. ``source_name`` and ``source_location``
+       on each created datum carry the HERMES topic and the per-message
+       API URL.
+    4. For each spectroscopy row: if it carries a file URL in ``file_info``,
        download the file, save it as a DataProduct, and run the data
        processor to produce ReducedDatums; otherwise ingest the inline
-       flux/wavelength arrays as a single spectroscopy ReducedDatum. Tag
-       all created ReducedDatums with the AlertStreamMessage.
-    6. Return a summary dict (see module docstring).
+       flux/wavelength arrays as a single spectroscopy ReducedDatum.
+    5. Return a summary dict (see module docstring).
 
     Called from ``hermes_alert_handler`` (stream path) and from
     ``tom_hermes.dataservices.hermes.HermesDataService.to_target`` (archive
@@ -195,26 +192,20 @@ def ingest_hermes_alert(alert, metadata=None) -> dict:
     # Step 2: resolve identity.
     alert_id, topic = _resolve_alert_identity(alert_as_dict, metadata)
 
-    # Build the link back to the HERMES message page. ``DATA_SHARING['hermes']['BASE_URL']``
-    # is the TOM operator's configured HERMES URL; defaults to the public
-    # instance if not set. This URL is saved as ReducedDatum.source_location
-    # so the provenance stays with the datum.
+    # Build the per-message HERMES API URL we save as
+    # ``ReducedDatum.source_location`` so the provenance stays with the
+    # datum. ``DATA_SHARING['hermes']['BASE_URL']`` is the TOM operator's
+    # configured HERMES URL; defaults to the public instance if not set.
     if hasattr(settings, 'DATA_SHARING'):
         hermes_base_url = settings.DATA_SHARING.get('hermes', {}).get('BASE_URL', 'https://hermes.lco.global')
     else:
         hermes_base_url = 'https://hermes.lco.global'
-    hermes_message_url = urljoin(hermes_base_url, f'/message/{alert_id}')
+    hermes_message_url = urljoin(hermes_base_url, f'/api/v0/query/message/{alert_id}/')
 
-    # Step 3: idempotence guard. The (topic, message_id, exchange_status)
-    # triple is the unique key; re-ingesting the same message is a no-op.
-    hermes_alert, created = AlertStreamMessage.objects.get_or_create(
-        topic=topic, exchange_status='ingested', message_id=alert_id,
-    )
-    summary['alert_stream_message'] = hermes_alert
-    if not created:
-        # Already ingested. Return with just the AlertStreamMessage populated
-        # so the caller can tell this was a duplicate.
-        return summary
+    # ``source_name`` namespaces the topic so consumers can tell
+    # HERMES-sourced data from any other broker that may also write
+    # ReducedDatums with a topic-shaped source_name.
+    source_name = f'Hermes:{topic}'
 
     # Cache of target-name-string -> Target model instance, used across
     # photometry and spectroscopy iterations so we do not re-query for
@@ -292,18 +283,13 @@ def ingest_hermes_alert(alert, metadata=None) -> dict:
             'value': get_hermes_phot_value(row),
         }
         datum_defaults = {
-            'source_name': topic,
+            'source_name': source_name,
             'source_location': hermes_message_url,
         }
         new_rd, was_created = ReducedDatum.objects.get_or_create(
             defaults=datum_defaults, **datum_key_fields,
         )
         if was_created:
-            # Tag the new ReducedDatum with the AlertStreamMessage so we can
-            # trace which message produced it (and so ``check_for_share_safe_datums``
-            # knows not to re-publish it to the same topic).
-            new_rd.message.add(hermes_alert)
-            new_rd.save()
             summary['reduced_datums'].append(new_rd)
 
     # Step 5: spectroscopy. Each row is either a reference to a downloadable
@@ -323,7 +309,7 @@ def ingest_hermes_alert(alert, metadata=None) -> dict:
             # processor to create ReducedDatums. The helper appends created
             # DataProducts and ReducedDatums to the summary so callers see them.
             _ingest_hermes_spectroscopy_file(
-                file_url, row, target, hermes_alert, hermes_message_url, summary=summary,
+                file_url, row, target, source_name, hermes_message_url, summary=summary,
             )
             continue
 
@@ -351,15 +337,13 @@ def ingest_hermes_alert(alert, metadata=None) -> dict:
                 'value': value,
             }
             datum_defaults = {
-                'source_name': topic,
+                'source_name': source_name,
                 'source_location': hermes_message_url,
             }
             new_rd, was_created = ReducedDatum.objects.get_or_create(
                 defaults=datum_defaults, **datum_key_fields,
             )
             if was_created:
-                new_rd.message.add(hermes_alert)
-                new_rd.save()
                 summary['reduced_datums'].append(new_rd)
 
     # Surface the first-target extras/aliases we captured during resolution,
@@ -404,13 +388,17 @@ def _get_spectroscopy_file_url(file_info_list):
     return None
 
 
-def _ingest_hermes_spectroscopy_file(url, spectroscopy_row, target, hermes_alert, alert_url,
+def _ingest_hermes_spectroscopy_file(url, spectroscopy_row, target, source_name, alert_url,
                                      summary: dict | None = None):
     """Download a spectroscopy file from ``url``, save as a DataProduct, run the data processor.
 
     Skips the download if a DataProduct with this URL as its ``product_id``
     already exists (so re-ingesting the same message is idempotent even
     for the file-download path).
+
+    ``source_name`` and ``alert_url`` are stamped onto the
+    ``extra_data`` of the DataProduct so the SpectroscopyProcessor can
+    read them back and apply them to the ReducedDatums it creates.
 
     When ``summary`` is provided (the refactored call path from
     ``ingest_hermes_alert``), the newly-created DataProduct and
@@ -443,7 +431,7 @@ def _ingest_hermes_spectroscopy_file(url, spectroscopy_row, target, hermes_alert
     }
     # source_name / source_location travel with the ReducedDatums produced
     # by the processor (see the SpectroscopyProcessor that reads extra_data).
-    spectroscopy_data['source_name'] = hermes_alert.topic
+    spectroscopy_data['source_name'] = source_name
     spectroscopy_data['source_location'] = alert_url
 
     try:
@@ -473,10 +461,8 @@ def _ingest_hermes_spectroscopy_file(url, spectroscopy_row, target, hermes_alert
         # Only run the processor for a newly-created DataProduct; this is
         # what actually turns the file's contents into ReducedDatum rows.
         reduced_datums = run_data_processor(dp)
-        for rd in reduced_datums:
-            rd.message.add(hermes_alert)
-            if summary is not None:
-                summary['reduced_datums'].append(rd)
+        if summary is not None:
+            summary['reduced_datums'].extend(reduced_datums)
     except Exception as ex:
         logger.error('Failed to ingest spectroscopy file from %s: %r', url, ex)
 

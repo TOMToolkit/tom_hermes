@@ -57,7 +57,6 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.module_loading import import_string
 
-from tom_alerts.models import AlertStreamMessage
 from tom_targets.models import Target
 
 from tom_hermes.credentials import resolve_hermes_credentials
@@ -327,12 +326,17 @@ def publish_to_hermes(message_info, datums, targets=None, *, user=None, **kwargs
     Reads the HERMES API key first from the User's ``HermesProfile`` and
     falls back to ``settings.DATA_SHARING['hermes']['HERMES_API_KEY']``.
 
-    Side effect: on successful submission, stores an ``AlertStreamMessage``
-    with ``exchange_status='published'`` and the HERMES-assigned message
-    UUID, then attaches it to every ReducedDatum in ``datums`` (via
-    ``ReducedDatum.message.add``). This is what
-    ``check_for_share_safe_datums`` checks to decide whether a subsequent
-    share of the same datum to the same topic should be suppressed.
+    No side effect on the local DB: the published datums keep whatever
+    ``source_name`` they already had. (Earlier versions of this code
+    stamped each shared datum with an ``AlertStreamMessage`` row whose
+    ``exchange_status='published'``; that model has been removed in the
+    larger refactor — both the model itself in ``tom_alerts`` and the
+    ``ReducedDatum.message`` M2M field that referenced it. The round-trip
+    safety guard in ``check_for_share_safe_datums`` now works on
+    ``source_name`` directly: it excludes datums whose
+    ``source_name == f'Hermes:{topic}'``, so a datum that originated from
+    this same topic is filtered out by the caller before the share
+    request reaches us.)
 
     Returns the ``requests.Response`` on success, or an error-shaped
     feedback dict ``{'message': 'ERROR: ...'}`` on setup/build failure.
@@ -369,16 +373,6 @@ def publish_to_hermes(message_info, datums, targets=None, *, user=None, **kwargs
     try:
         response = requests.post(url=submit_url, json=alert, headers=headers)
         response.raise_for_status()
-        # Stamp the outgoing datums with an AlertStreamMessage so we know
-        # not to re-publish them to the same topic.
-        hermes_alert = AlertStreamMessage(
-            topic=message_info.topic,
-            message_id=response.json().get('uuid'),
-            exchange_status='published',
-        )
-        hermes_alert.save()
-        for tomtoolkit_photometry in datums:
-            tomtoolkit_photometry.message.add(hermes_alert)
     except Exception as ex:
         logger.error(repr(ex))
         if response is not None:
