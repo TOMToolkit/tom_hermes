@@ -13,10 +13,11 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 
-from tom_hermes.dataservices.hermes import HermesDataService
+from tom_hermes.dataservices.hermes import HermesDataService, _flatten_hermes_archive_row
 
 
 class BuildQueryParametersTests(TestCase):
@@ -286,3 +287,106 @@ class AdditionalContextTests(TestCase):
         self.assertFalse(ctx['tom_nonlocalizedevents_installed'])
         # version is whatever tom_hermes.__version__ is at test time.
         self.assertIn('version', ctx)
+
+
+class FlattenHermesArchiveRowTests(TestCase):
+    """``_flatten_hermes_archive_row`` promotes nested metadata/annotations to flat top-level keys.
+
+    Previously covered only indirectly via ``QueryTargetsTests.test_handles_hermes_messages_response``;
+    these tests exercise the helper directly so edge cases (missing
+    metadata, missing annotations, setdefault behaviour, bad timestamp)
+    are guarded against regression.
+    """
+
+    def test_flattens_standard_archive_row(self):
+        row = {
+            'metadata': {'topic': 'hermes.test', 'timestamp': 1776973782947},
+            'annotations': {'title': 'hello', 'sender': 'alice', 'con_text_uuid': 'uuid-a'},
+        }
+        _flatten_hermes_archive_row(row)
+        self.assertEqual(row['topic'], 'hermes.test')
+        self.assertEqual(row['title'], 'hello')
+        self.assertEqual(row['submitter'], 'alice')
+        self.assertEqual(row['uuid'], 'uuid-a')
+        # ``published`` is an ISO-8601 UTC string derived from the ms timestamp.
+        self.assertTrue(row['published'].startswith('2026'))
+        # Original nested fields remain so downstream code (to_target) can still reach them.
+        self.assertEqual(row['metadata']['topic'], 'hermes.test')
+        self.assertEqual(row['annotations']['title'], 'hello')
+
+    def test_missing_metadata_yields_empty_topic_and_no_published(self):
+        # A row without ``metadata`` (defensive: malformed HERMES response)
+        # gets an empty ``topic`` and no ``published`` key — the helper
+        # only sets ``published`` when a usable timestamp is present.
+        row = {'annotations': {'title': 'hello'}}
+        _flatten_hermes_archive_row(row)
+        self.assertEqual(row['topic'], '')
+        self.assertNotIn('published', row)
+        self.assertEqual(row['title'], 'hello')
+
+    def test_missing_annotations_yields_empty_strings(self):
+        row = {'metadata': {'topic': 'x'}}
+        _flatten_hermes_archive_row(row)
+        self.assertEqual(row['title'], '')
+        self.assertEqual(row['submitter'], '')
+        self.assertEqual(row['uuid'], '')
+
+    def test_setdefault_preserves_existing_flat_keys(self):
+        # If a row already has ``topic`` at the top level (e.g. a future
+        # HERMES API version returns it natively), the flattening is a
+        # no-op for that key — ``setdefault`` does not overwrite.
+        row = {
+            'topic': 'already-flat',
+            'metadata': {'topic': 'should-not-overwrite'},
+            'annotations': {},
+        }
+        _flatten_hermes_archive_row(row)
+        self.assertEqual(row['topic'], 'already-flat')
+
+    def test_bad_timestamp_yields_empty_published(self):
+        # A non-numeric timestamp must not crash; ``published`` becomes
+        # an empty string so the template renders something benign.
+        row = {
+            'metadata': {'timestamp': 'not-a-number'},
+            'annotations': {},
+        }
+        _flatten_hermes_archive_row(row)
+        self.assertEqual(row['published'], '')
+
+
+class BuildHeadersTests(TestCase):
+    """``build_headers`` derives Authorization: Token <api_key> from resolve_hermes_credentials.
+
+    Previously covered only indirectly via the QueryServiceTests setup;
+    these tests exercise build_headers directly so the user-threading and
+    no-credentials behaviours are guarded against regression.
+    """
+
+    @override_settings(DATA_SHARING={
+        'hermes': {'HERMES_API_KEY': 'settings-key', 'BASE_URL': 'https://h.example/'},
+    })
+    def test_settings_api_key_produces_token_header(self):
+        # No user → resolve_hermes_credentials reads from settings. Real
+        # code path, no mocks: settings → resolve → build_headers.
+        svc = HermesDataService()
+        self.assertEqual(svc.build_headers(), {'Authorization': 'Token settings-key'})
+
+    @override_settings(DATA_SHARING={})
+    def test_no_credentials_returns_empty_headers(self):
+        # When neither user profile nor settings provide an api_key,
+        # build_headers returns {} so HERMES will respond 403, which the
+        # view surfaces to the user as a query-feedback banner.
+        svc = HermesDataService()
+        self.assertEqual(svc.build_headers(), {})
+
+    def test_resolve_credentials_called_with_self_user(self):
+        # build_headers must thread ``self.user`` into resolve so per-user
+        # HermesProfile credentials are picked up correctly. Patch resolve
+        # so the test does not depend on the session cipher.
+        fake_user = AnonymousUser()
+        svc = HermesDataService(user=fake_user)
+        with patch('tom_hermes.dataservices.hermes.resolve_hermes_credentials',
+                   return_value={'api_key': 'mocked-key', 'base_url': 'x'}) as resolve_mock:
+            headers = svc.build_headers()
+        resolve_mock.assert_called_once_with(fake_user)
+        self.assertEqual(headers, {'Authorization': 'Token mocked-key'})
