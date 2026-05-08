@@ -40,11 +40,15 @@ class HermesProfileForm(forms.ModelForm):
     """
 
     # LCO HERMES submit API key. Rendered as a password input so the
-    # value is not shoulder-surfable while typing.
+    # value is not shoulder-surfable while typing. ``render_value=True``
+    # keeps the previously-saved value populated when the form re-renders
+    # (e.g. on validation error) so the user does not have to re-type
+    # their key after a missed required field elsewhere on the form.
+    # Pattern mirrors ``tom_eso.forms.ESOProfileForm`` (PR #44).
     hermes_api_key = forms.CharField(
         required=False,
         label='HERMES API Key',
-        widget=forms.PasswordInput(render_value=False),
+        widget=forms.PasswordInput(render_value=True),
         help_text='Your HERMES API key (found on your HERMES profile page). Leave blank to keep unchanged.',
     )
 

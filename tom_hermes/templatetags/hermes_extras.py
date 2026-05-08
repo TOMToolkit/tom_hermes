@@ -55,18 +55,28 @@ def hermes_profile_data(user) -> dict:
 
     profile_data_list: list = []
 
-    # Encrypted fields: never render the actual value on the profile page.
-    # We only indicate whether a value is set, to protect the secret from
-    # shoulder-surfing and from any future page-capture / logging.
+    # Encrypted fields: render as a masked password input the user can
+    # click to reveal, mirroring the tom_eso pattern (PR #44). When the
+    # value is unset we fall back to a plain ``[not set]`` marker — there
+    # is nothing to mask. ``is_password`` flags the masked-input rendering
+    # for the partial template; the actual decrypted value is sent down
+    # to the browser only when there is one to reveal on click.
     for encrypted_field_name in ('hermes_api_key',):
         label = HermesProfileForm.base_fields[encrypted_field_name].label
         # get_encrypted_field can return None when the session cipher is
         # unavailable; we treat that the same as "not set" for display.
         decrypted = get_encrypted_field(user, profile, encrypted_field_name)
-        profile_data_list.append({
-            'label': label,
-            'value': '[set]' if decrypted else '[not set]',
-        })
+        if decrypted:
+            profile_data_list.append({
+                'label': label,
+                'value': decrypted,
+                'is_password': True,
+            })
+        else:
+            profile_data_list.append({
+                'label': label,
+                'value': '[not set]',
+            })
 
     return {
         'user': user,

@@ -1,16 +1,23 @@
-{# HERMES card on the user-profile page. #}
-{# #}
-{# Rendered by the `hermes_profile_data` inclusion tag #}
-{# (tom_hermes/templatetags/hermes_extras.py), which is invoked by #}
-{# `tom_common.templatetags.user_extras.show_app_profiles` for every app #}
-{# that registers a `profile_details` integration point. #}
-{# #}
-{# Context (from hermes_profile_data): #}
-{#   user               — the logged-in User. #}
-{#   hermes_profile     — the User's HermesProfile instance. #}
-{#   profile_data_list  — list of {label, value} dicts, one row per displayable field. #}
-{#                        Encrypted values are masked to '[set]' / '[not set]'; #}
-{#                        the raw credential is never rendered here. #}
+{% comment %}
+HERMES card on the user-profile page.
+
+Rendered by the `hermes_profile_data` inclusion tag
+(tom_hermes/templatetags/hermes_extras.py), which is invoked by
+`tom_common.templatetags.user_extras.show_app_profiles` for every app
+that registers a `profile_details` integration point.
+
+Context (from hermes_profile_data):
+  user               — the logged-in User.
+  hermes_profile     — the User's HermesProfile instance.
+  profile_data_list  — list of {label, value, [is_password]} dicts, one
+                       row per displayable field. When `is_password` is
+                       set, the value is rendered as a masked password
+                       input the user can click to reveal — mirrors the
+                       tom_eso pattern (PR #44). When the credential is
+                       unset, value is the literal `[not set]` and
+                       is_password is absent, so the row renders as
+                       plain text.
+{% endcomment %}
 <div class="card">
     <div class="card-header bg-dark text-light">
         <div style="display: flex; justify-content: space-between">
@@ -35,7 +42,21 @@
             {% for field_data in profile_data_list %}
                 {% if field_data.value %}
                     <dt class="col-sm-6">{{ field_data.label }}</dt>
-                    <dd class="col-sm-6">{{ field_data.value }}</dd>
+                    <dd class="col-sm-6">
+                        {% if field_data.is_password %}
+                            <input
+                                type="password"
+                                readonly
+                                value="{{ field_data.value }}"
+                                title="Click to reveal"
+                                class="form-control-plaintext p-0"
+                                style="cursor:pointer;"
+                                onclick="this.type = this.type === 'password' ? 'text' : 'password'"
+                            />
+                        {% else %}
+                            {{ field_data.value }}
+                        {% endif %}
+                    </dd>
                 {% endif %}
             {% empty %}
                 <p>No HERMES profile items yet for this user.</p>
