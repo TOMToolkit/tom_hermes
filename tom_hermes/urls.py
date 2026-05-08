@@ -14,7 +14,11 @@ in tom_eso and elsewhere in tomtoolkit.
 """
 from django.urls import path
 
-from tom_hermes.views import HermesProfileUpdateView
+from tom_hermes.views import (
+    HermesProfileUpdateView,
+    TargetGroupingHermesPreloadView,
+    TargetHermesPreloadView,
+)
 
 app_name = 'tom_hermes'
 
@@ -25,5 +29,18 @@ urlpatterns = [
         'users/<int:pk>/update/',
         HermesProfileUpdateView.as_view(),
         name='hermes-profile-update',
+    ),
+    # "Open in Hermes 🗗" button on a single Target's data-share dialog.
+    # Stashes a draft on HERMES and redirects the user to the HERMES UI.
+    path(
+        'targets/<int:pk>/preload/',
+        TargetHermesPreloadView.as_view(),
+        name='target-preload',
+    ),
+    # Same but for a TargetList (group of Targets).
+    path(
+        'targetgrouping/<int:pk>/preload/',
+        TargetGroupingHermesPreloadView.as_view(),
+        name='target-grouping-preload',
     ),
 ]
