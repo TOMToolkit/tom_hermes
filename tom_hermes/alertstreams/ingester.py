@@ -3,6 +3,9 @@ HERMES-message ingestion: writes TOM database rows (Targets, ReducedDatums, Data
 
 ### Two caller contexts, one implementation
 
+Both alertstream (`readstreams`) ingestion and `DataService` query ingestion
+(select and create Targets from DataService query result) funnel into the same code.
+
 ``ingest_hermes_alert(alert, metadata=None)`` is the one function that writes
 data from a HERMES message into the TOM database. It is called from two
 places:
@@ -52,15 +55,6 @@ Callers that want a single Target (the DataService framework's ``to_target``
 contract) pick ``summary['targets'][0]`` and use ``target_extras`` /
 ``aliases`` directly.
 
-### Provenance and history
-
-Source of this module: previously ``tom_base/tom_dataproducts/alertstreams/hermes_ingester.py``
-on branch ``fix/hermes_ingestion`` (merged into
-``1430-migrate-hermes-broker-to-data-service`` at commit ``2df08f22``). Moved
-here as part of consolidating HERMES-specific code into ``tom_hermes``. The
-original ``hermes_alert_handler`` body has been split into a caller-agnostic
-``ingest_hermes_alert`` plus a thin ``hermes_alert_handler`` wrapper so that
-the stream-ingest and query-ingest paths share one implementation.
 """
 from __future__ import annotations
 

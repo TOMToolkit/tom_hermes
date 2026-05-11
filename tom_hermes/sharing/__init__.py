@@ -50,7 +50,7 @@ from tom_hermes.sharing.publisher import (
 
 # The list of public names exported from this package. Kept explicit so
 # that flake8's F401 does not flag the imports above and so ``from
-# tom_hermes.sharing import *`` sees a stable surface.
+# tom_hermes.sharing import *`` is well-defined (here).
 __all__ = [
     'BuildHermesMessage',
     'HermesDataConverter',

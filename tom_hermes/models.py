@@ -1,39 +1,3 @@
-"""
-Per-user HERMES credentials model.
-
-### Why this model exists
-
-HERMES authentication has historically been configured in the TOM operator's
-``settings.DATA_SHARING['hermes']`` block, which is a TOM-wide shared
-credential. For multi-user TOMs we want per-user credentials so each User
-publishes and subscribes under their own HERMES identity.
-
-### Where the credentials are read
-
-``tom_hermes.sharing._resolve_hermes_credentials(user)`` reads this model
-first. If the User has no ``HermesProfile`` (or the Profile has no HERMES
-credentials), that function falls back to
-``settings.DATA_SHARING['hermes']``. Both paths are fully supported
-indefinitely: Profile = per-user, settings = TOM-wide shared credentials.
-No deprecation warning attaches to the settings fallback.
-
-### Encryption
-
-The ``hermes_api_key`` secret is encrypted at rest using the
-Fernet-backed session cipher that ``tom_common.models.EncryptableModelMixin``
-/ ``EncryptedProperty`` provides. The cipher key is derived from the User's
-login password via PBKDF2-HMAC and lives in the Django session, not in
-settings. See ``tom_common.session_utils``. Reading an encrypted field
-therefore requires an authenticated request context (``request.user``
-with an active session).
-
-### Follows the same pattern as tom_eso
-
-The structure here mirrors ``tom_eso.models.ESOProfile``: the mixin
-supplies the ``user`` OneToOneField, and each secret field is a pair of
-``_<name>_encrypted`` BinaryField plus a ``<name> = EncryptedProperty(...)``
-descriptor.
-"""
 from __future__ import annotations
 
 import logging
@@ -46,14 +10,13 @@ logger = logging.getLogger(__name__)
 
 
 class HermesProfile(EncryptableModelMixin, models.Model):
-    """Per-user HERMES credentials.
+    """Per-user HERMES data.
 
     The ``user`` OneToOneField is inherited from ``EncryptableModelMixin``
-    and should not be redefined here. Each secret is stored as a
-    ``_<name>_encrypted`` BinaryField with a matching
-    ``<name> = EncryptedProperty('_<name>_encrypted')`` descriptor that
-    transparently encrypts on write and decrypts on read (see the
-    ``EncryptableModelMixin`` docstring for the setup sequence).
+    and should not be redefined here; associates the model instance with
+    it's User.
+
+    Uses the standard idiom for encrytped data in TOMToolkit.
     """
 
     # LCO HERMES submit API key (hermes.lco.global/api/v0/submit_message/).

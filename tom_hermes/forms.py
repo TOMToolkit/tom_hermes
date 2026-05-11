@@ -44,7 +44,6 @@ class HermesProfileForm(forms.ModelForm):
     # keeps the previously-saved value populated when the form re-renders
     # (e.g. on validation error) so the user does not have to re-type
     # their key after a missed required field elsewhere on the form.
-    # Pattern mirrors ``tom_eso.forms.ESOProfileForm`` (PR #44).
     hermes_api_key = forms.CharField(
         required=False,
         label='HERMES API Key',
@@ -55,13 +54,13 @@ class HermesProfileForm(forms.ModelForm):
     class Meta:
         model = HermesProfile
         # hermes_api_key is declared above, not a plain model field;
-        # ModelForm happily treats it as a form field but does not try to
+        # ModelForm treats it as a form field but does not try to
         # read/write it through the model descriptor (which would require
-        # the session cipher).
+        # the cipher).
         fields = ['hermes_api_key']
 
     def __init__(self, *args, **kwargs):
-        # The view passes in the logged-in User so we can read the session
+        # The view passes in the logged-in User so we can read the
         # cipher; without it, we cannot decrypt the existing secret to populate
         # the form's initial value.
         self.user = kwargs.pop('user', None)
@@ -93,8 +92,8 @@ class HermesProfileForm(forms.ModelForm):
         if new_value:
             success = set_encrypted_field(user, instance, 'hermes_api_key', new_value)
             if not success:
-                # set_encrypted_field returns False when the session
-                # cipher is missing — surface it as a non-field form
+                # set_encrypted_field returns False when the cipher is missing.
+                # Show it as a non-field form
                 # error so the user sees a useful message rather than
                 # silently losing the edit.
                 self.add_error(

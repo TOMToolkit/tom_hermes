@@ -23,15 +23,8 @@ SCRAM creds for ``readstreams`` come from
 
 Both paths are fully supported: the TOM-wide path is the canonical
 mechanism when a TOM operator authenticates all users with a single set
-of HERMES credentials. No deprecation warning fires when falling through
-to the settings path.
+of HERMES credentials.
 
-### Callers
-
-- ``tom_hermes.sharing.publisher.publish_to_hermes``
-- ``tom_hermes.sharing.publisher.preload_to_hermes``
-- ``tom_hermes.sharing.publisher.get_hermes_topics``
-- ``tom_hermes.sharing.backend.HermesSharingBackend.validate_credentials``
 """
 from __future__ import annotations
 

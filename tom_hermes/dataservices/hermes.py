@@ -145,27 +145,23 @@ class HermesDataService(DataService):
         guess; verify against the LCOGT/hermes source at implementation
         time.
         """
-        base = cls.base_url
+        base = cls.base_url  # defined above
 
         urls_by_purpose = {
             'base_url': base,
-            'info_url': cls.info_url,
+            'info_url': cls.info_url,  # defined above
+
             # Generic message search (wraps archive-api):
             'query_url': f'{base}/api/v0/query',
+
             # TO VERIFY against LCOGT/hermes source:
             'topics_url': f'{base}/api/v0/topics/',
+
             # Per-message content fetch. The archive-query response is
-            # metadata-only; UC3 ingestion needs the full message body
+            # metadata-only; Target creation requires the full message body
             # (topic / title / data.photometry / data.spectroscopy /
             # data.targets etc.), so ``to_target`` follows up by GETting
             # this URL with the message uuid substituted in.
-            #
-            # Path verified against LCOGT/hermes `hermes_base/urls.py`
-            # on branch `dev` (2026-04-23):
-            #     path('api/v0/query/message/<str:uuid>/',
-            #          views.MessageApiView.as_view(), name='query-message')
-            # Not `/api/v0/messages/<uuid>/` — that's the DRF router's
-            # generic MessageViewSet, which is keyed by pk (int), not uuid.
             'message_url_template': f'{base}/api/v0/query/message/{{uuid}}/',
         }
         return urls_by_purpose
@@ -364,7 +360,7 @@ class HermesDataService(DataService):
 
         # The /api/v0/query/message/<uuid>/ response has three top-level
         # keys — ``metadata``, ``annotations``, ``message`` — where
-        # ``message`` is the published body (the one ``publish_to_hermes``
+        # ``message`` is the published body (what ``publish_to_hermes``
         # originally POSTed) with keys like ``topic`` / ``title`` /
         # ``data.targets`` / ``data.photometry`` / ``data.spectroscopy``.
         # ``ingest_hermes_alert`` expects *that* shape, so unwrap here.

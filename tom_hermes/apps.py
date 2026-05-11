@@ -23,40 +23,21 @@ from django.urls import include, path
 
 
 class TomHermesConfig(AppConfig):
-    """Single AppConfig for the ``tom_hermes`` Django app.
-
-    All HERMES-specific integration points live here. If you add a new
-    HERMES integration (e.g., a new DataService class, a new kind of
-    profile partial), add it to the corresponding list-returning method
-    below rather than writing new glue elsewhere.
+    """AppConfig for the ``tom_hermes``.
     """
-
-    # ``default = True`` tells Django (3.2+) to use this AppConfig when
-    # ``tom_hermes`` is referenced by its dotted package path in
-    # INSTALLED_APPS. Explicit and forward-compatible; replaces the older
-    # ``default_app_config`` attribute on the package's ``__init__.py``.
-    default = True
+    default = True  # this is the default AppConfig for `tom_hermes`
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'tom_hermes'
 
     def data_services(self):
         """Advertise ``HermesDataService`` to the tom_dataservices discovery.
-
-        tom_dataservices calls this method on every installed AppConfig
-        and aggregates the returned lists into its registry of DataService
-        classes. The class is resolved lazily (dotted-path string), so
-        ``tom_hermes.dataservices.hermes`` does not need to import cleanly
-        at Django app-ready time.
         """
         return [{'class': f'{self.name}.dataservices.hermes.HermesDataService'}]
 
     def sharing_backends(self):
         """Advertise ``HermesSharingBackend`` to the tom_common.sharing discovery.
 
-        ``tom_common.sharing.get_sharing_backends()`` calls this method on
-        every installed AppConfig and aggregates the returned lists into
-        its registry of SharingBackend classes. The class is resolved
-        lazily (dotted-path string).
+        ``tom_common.sharing.get_sharing_backends()`` calls this method.
         """
         return [{'class': f'{self.name}.sharing.HermesSharingBackend'}]
 
