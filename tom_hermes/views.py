@@ -35,7 +35,6 @@ from tom_dataproducts.models import ReducedDatum
 from tom_targets.models import Target, TargetList
 
 from tom_hermes.credentials import resolve_hermes_credentials
-from tom_hermes.forms import HermesProfileForm
 from tom_hermes.models import HermesProfile
 from tom_hermes.sharing.publisher import BuildHermesMessage, preload_to_hermes
 
@@ -52,20 +51,9 @@ class HermesProfileUpdateView(LoginRequiredMixin, UpdateView):
     """
 
     model = HermesProfile
+    fields = ['hermes_api_key']
     template_name = 'tom_hermes/hermes_update_user_profile.html'
 
-    # Custom form class handles the encrypted hermes_api_key field.
-    form_class = HermesProfileForm
-
-    def get_form_kwargs(self):
-        """Extend ``UpdateView.get_form_kwargs`` to pass ``request.user`` into the form.
-
-        The form needs the User to read/write encrypted fields (the session
-        cipher is derived from the User's login).
-        """
-        kwargs = super().get_form_kwargs()
-        kwargs['user'] = self.request.user
-        return kwargs
 
     def get_success_url(self):
         """Return the user-profile page URL so the user sees the updated card after saving."""

@@ -33,7 +33,7 @@ without caring which submodule ``X`` lives in. That also lets
 # Re-export the public surface of the package. Consumers should import
 # these names from ``tom_hermes.sharing`` rather than reaching into the
 # submodules directly.
-from tom_hermes.sharing.backend import HermesSharingBackend
+# from tom_hermes.sharing.backend import HermesSharingBackend
 from tom_hermes.sharing.publisher import (
     BuildHermesMessage,
     HermesDataConverter,
@@ -55,7 +55,7 @@ __all__ = [
     'BuildHermesMessage',
     'HermesDataConverter',
     'HermesMessageException',
-    'HermesSharingBackend',
+    # 'HermesSharingBackend',
     'convert_astropy_brightness_unit_to_hermes',
     'convert_astropy_flux_unit_to_hermes',
     'convert_astropy_wavelength_unit_to_hermes',

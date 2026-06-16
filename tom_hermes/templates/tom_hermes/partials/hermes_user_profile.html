@@ -1,22 +1,5 @@
 {% comment %}
-HERMES card on the user-profile page.
-
-Rendered by the `hermes_profile_data` inclusion tag
-(tom_hermes/templatetags/hermes_extras.py), which is invoked by
-`tom_common.templatetags.user_extras.show_app_profiles` for every app
-that registers a `profile_details` integration point.
-
-Context (from hermes_profile_data):
-  user               — the logged-in User.
-  hermes_profile     — the User's HermesProfile instance.
-  profile_data_list  — list of {label, value, [is_password]} dicts, one
-                       row per displayable field. When `is_password` is
-                       set, the value is rendered as a masked password
-                       input the user can click to reveal — mirrors the
-                       tom_eso pattern (PR #44). When the credential is
-                       unset, value is the literal `[not set]` and
-                       is_password is absent, so the row renders as
-                       plain text.
+    HERMES card on the user-profile page.
 {% endcomment %}
 <div class="card">
     <div class="card-header bg-dark text-light">
@@ -39,23 +22,19 @@ Context (from hermes_profile_data):
         </p>
         <hr />
         <dl class="row">
+            <dt class="col-sm-6">Hermes API Key</dt>
+            <dd class="col-sm-6">
+                {% if hermes_api_key %}
+                    {% include 'tom_common/partials/revealable_password_input.html' with value=hermes_api_key %}
+                {% else %}
+                    (not set)
+                {% endif %}
+             </dd>
             {% for field_data in profile_data_list %}
                 {% if field_data.value %}
                     <dt class="col-sm-6">{{ field_data.label }}</dt>
                     <dd class="col-sm-6">
-                        {% if field_data.is_password %}
-                            <input
-                                type="password"
-                                readonly
-                                value="{{ field_data.value }}"
-                                title="Click to reveal"
-                                class="form-control-plaintext p-0"
-                                style="cursor:pointer;"
-                                onclick="this.type = this.type === 'password' ? 'text' : 'password'"
-                            />
-                        {% else %}
-                            {{ field_data.value }}
-                        {% endif %}
+                        {{ field_data.value }}
                     </dd>
                 {% endif %}
             {% empty %}

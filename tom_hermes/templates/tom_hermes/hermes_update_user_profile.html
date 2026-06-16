@@ -1,17 +1,5 @@
 {% extends 'tom_common/base.html' %}
-{% comment %}
-HERMES profile edit form page.
-
-Rendered by tom_hermes.views.HermesProfileUpdateView at
-/hermes/users/<pk>/update/. Reached from the "Edit" icon on the HERMES
-card on the user-profile page (see partials/hermes_user_profile.html).
-
-Context (from UpdateView.get_context_data):
-  form  — HermesProfileForm bound to the user's HermesProfile instance.
-  user  — the logged-in User (added by auth middleware).
-
-{% endcomment %}
-{% load bootstrap4 %}
+{% load django_bootstrap5 %}
 {% block title %}Update HERMES Profile{% endblock %}
 {% block content %}
 
@@ -20,10 +8,8 @@ Context (from UpdateView.get_context_data):
 <div class="w-50">  {# Sets the width to 50% #}
     <form method="post">
         {% csrf_token %}
-        {% bootstrap_form form %}
-        {% buttons %}
-        <button type="submit" class="btn btn-primary">Update</button>
-        {% endbuttons %}
+        {{ form }}
+        {% bootstrap_button "Update" button_type="submit" button_class="btn btn-primary" title="Update" %}
     </form>
 </div>
 {% endblock %}
