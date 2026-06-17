@@ -17,7 +17,6 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(
                     auto_created=True, primary_key=True, serialize=False, verbose_name='ID',
                 )),
-                ('_hermes_api_key_encrypted', models.BinaryField(blank=True, null=True)),
                 ('user', models.OneToOneField(
                     on_delete=models.deletion.CASCADE, to=settings.AUTH_USER_MODEL,
                 )),

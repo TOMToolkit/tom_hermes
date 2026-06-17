@@ -1,15 +1,12 @@
 """
 Tests for the per-user ``HermesProfile`` plumbing.
 
-Keeps the end-to-end encrypted-field read/write out of scope — that path
-requires the Django session cipher set up by the login signal, which is
-complicated to stand up in a test. Instead we test the model contract,
-the view's auth requirement, and the form's blank-means-keep behavior
-with ``set_encrypted_field`` mocked.
+Covers the model contract, the view's auth requirement, and the form's
+blank-means-keep behaviour. With the new ``EncryptedProperty`` descriptor
+(cipher derived from ``settings.SECRET_KEY`` rather than per-user material)
+round-trip read/write through the descriptor is exercised directly.
 """
 from __future__ import annotations
-
-from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
@@ -21,9 +18,8 @@ from tom_hermes.models import HermesProfile
 
 class HermesProfileModelTests(TestCase):
     def test_one_to_one_with_user(self):
-        # HermesProfile inherits ``user`` from EncryptableModelMixin as a
-        # OneToOneField; creating a second profile for the same user
-        # must fail.
+        # HermesProfile.user is a OneToOneField; creating a second profile
+        # for the same user must fail.
         user = User.objects.create_user(username='u1', password='pw')
         HermesProfile.objects.create(user=user)
         with self.assertRaises(Exception):  # IntegrityError in sqlite
@@ -34,6 +30,16 @@ class HermesProfileModelTests(TestCase):
         user = User.objects.create_user(username='alice', password='pw')
         profile = HermesProfile.objects.create(user=user)
         self.assertIn('alice', str(profile))
+
+    def test_round_trip_encrypted_value(self):
+        # Assigning to the EncryptedProperty encrypts on write; reading
+        # decrypts; the value survives a save / refresh_from_db round-trip.
+        user = User.objects.create_user(username='alice', password='pw')
+        profile = HermesProfile.objects.create(user=user)
+        profile.hermes_api_key = 'sekret-key-value'
+        profile.save()
+        profile.refresh_from_db()
+        self.assertEqual(profile.hermes_api_key, 'sekret-key-value')
 
 
 class HermesProfileViewTests(TestCase):
@@ -68,30 +74,28 @@ class HermesProfileFormSaveTests(TestCase):
         self.user = User.objects.create_user(username='alice', password='pw')
         self.profile = HermesProfile.objects.create(user=self.user)
 
-    def test_blank_encrypted_field_does_not_call_set_encrypted_field(self):
-        # Submit with the API key blank. set_encrypted_field is mocked so
-        # no session cipher is needed.
+    def test_blank_encrypted_field_does_not_change_stored_value(self):
+        # Pre-seed a value so we can confirm a blank submission preserves it.
+        self.profile.hermes_api_key = 'existing-key'
+        self.profile.save()
+
         form = HermesProfileForm(
             data={'hermes_api_key': ''},
             instance=self.profile,
-            user=self.user,
         )
         self.assertTrue(form.is_valid(), msg=form.errors)
-        with patch('tom_hermes.forms.set_encrypted_field') as set_mock:
-            form.save()
-        set_mock.assert_not_called()
+        form.save()
 
-    def test_non_blank_encrypted_field_calls_set_encrypted_field(self):
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.hermes_api_key, 'existing-key')
+
+    def test_non_blank_encrypted_field_writes_through(self):
         form = HermesProfileForm(
             data={'hermes_api_key': 'new-key'},
             instance=self.profile,
-            user=self.user,
         )
         self.assertTrue(form.is_valid(), msg=form.errors)
-        with patch('tom_hermes.forms.set_encrypted_field', return_value=True) as set_mock:
-            form.save()
-        self.assertEqual(set_mock.call_count, 1)
-        call_args = set_mock.call_args.args
-        # Args: (user, instance, field_name, value)
-        self.assertEqual(call_args[2], 'hermes_api_key')
-        self.assertEqual(call_args[3], 'new-key')
+        form.save()
+
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.hermes_api_key, 'new-key')

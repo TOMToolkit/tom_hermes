@@ -81,12 +81,8 @@ def _flatten_hermes_archive_row(row: dict) -> None:
             row['published'] = ''
 
 
-# Topic list is stable over minutes; cache for an hour. The cache key is
-# prefixed with this module's name so other DataServices cannot accidentally
-# read or write this entry. The per-user suffix (added in get_topic_choices)
-# keeps users from seeing each other's authenticated topic lists.
-_TOPICS_CACHE_KEY_PREFIX = 'tom_hermes:topics'
-_TOPICS_CACHE_TTL_SECONDS = 60 * 60
+_TOPICS_CACHE_KEY_PREFIX = 'tom_hermes:topics'  # namespace the cache data
+_TOPICS_CACHE_TTL_SECONDS = 60 * 60  # one hour
 
 
 class HermesDataService(DataService):
@@ -112,6 +108,20 @@ class HermesDataService(DataService):
     app_version = __version__
     app_link = 'https://github.com/TOMToolkit/tom_hermes'
 
+    def __init__(self, *args, user=None, **kwargs):
+        """Accept and store the requesting User on the instance.
+
+        The ``tom_dataservices`` base class does not thread ``user`` through
+        ``__init__`` (it constructs services with no args). We accept it
+        here so that callers — including the test suite and any view that
+        passes ``user=request.user`` — can pre-populate the attribute that
+        ``build_headers`` reads. Views that instantiate via the framework's
+        zero-arg pattern can also set ``svc.user`` directly after
+        construction.
+        """
+        super().__init__(*args, **kwargs)
+        self.user = user
+
     @classmethod
     def get_form_class(cls):
         """Return the query form class the framework uses to render the query UI.
@@ -121,14 +131,11 @@ class HermesDataService(DataService):
         return HermesForm
 
     def build_headers(self, *args, **kwargs):
-        """Attach ``Authorization: Token <api_key>`` to every HERMES request this DataService makes.
+        """Attach ``Authorization: Token <api_key>`` to every HERMES request
+        this DataService makes.
 
-        HERMES requires auth on `/api/v0/query/` and `/api/v0/topics/`; sending an anonymous
-        request produces a 403. Credentials come from ``resolve_hermes_credentials(self.user)``
-        — ``self.user`` is set by ``tom_dataservices.views.RunQueryView`` and siblings when
-        they instantiate the DataService. When there is no User (background callers) or
-        the user has no configured HERMES key, returns an empty dict and lets HERMES
-        produce its own 403, which the view surfaces as a query-feedback banner.
+        HERMES requires auth on `/api/v0/query/` and `/api/v0/topics/`;
+        So, resolve the creds get the api_key.
         """
         creds = resolve_hermes_credentials(getattr(self, 'user', None))
         api_key = creds.get('api_key')
@@ -145,24 +152,21 @@ class HermesDataService(DataService):
         guess; verify against the LCOGT/hermes source at implementation
         time.
         """
-        base = cls.base_url  # defined above
+        base = cls.base_url  # base_url is class attribute
 
         urls_by_purpose = {
             'base_url': base,
-            'info_url': cls.info_url,  # defined above
+            'info_url': cls.info_url,  # also class attribute
 
-            # Generic message search (wraps archive-api):
-            'query_url': f'{base}/api/v0/query',
+            
+            'query_url': f'{base}/api/v0/query',  # Generic message search (wraps archive-api), returns msg meta-data
 
-            # TO VERIFY against LCOGT/hermes source:
-            'topics_url': f'{base}/api/v0/topics/',
+            'topics_url': f'{base}/api/v0/topics/',  # for topic verification
 
-            # Per-message content fetch. The archive-query response is
-            # metadata-only; Target creation requires the full message body
-            # (topic / title / data.photometry / data.spectroscopy /
-            # data.targets etc.), so ``to_target`` follows up by GETting
-            # this URL with the message uuid substituted in.
-            'message_url_template': f'{base}/api/v0/query/message/{{uuid}}/',
+
+            # the archive query response is message metadata; use this url
+            # to ask HERMES for the message content if needed.
+            'message_url_template': f'{base}/api/v0/query/message/{{uuid}}/',  # returns full message
         }
         return urls_by_purpose
 
@@ -170,15 +174,12 @@ class HermesDataService(DataService):
     def get_topic_choices(cls, user=None) -> list:
         """Return the list of ``(value, label)`` pairs for the advanced form's topic multi-select.
 
-        Unlike the sharing path (which filters to *writable* topics via
-        ``/api/v0/profile/``), the query path wants any topic the user is
-        permitted to *read* — including topics they cannot publish to.
         Hits ``/api/v0/topics/`` with ``Authorization: Token <api_key>``
         taken from ``tom_hermes.credentials.resolve_hermes_credentials(user)``.
 
-        Cached for an hour, per user, so that rendering the form does not
-        hit HERMES on every page load and so two users do not see each
-        other's authenticated topic lists. Called by ``HermesForm.__init__``.
+        Cached for an hour, per user (don't spam HERMES and insulate users from each other).
+
+        Called by ``HermesForm.__init__``.
         """
         # Per-user cache key. Anonymous / background callers (no user) get a
         # 'shared' key, which reads from settings credentials if any.
@@ -200,13 +201,10 @@ class HermesDataService(DataService):
                     cls.get_urls(url_type='topics_url'), headers=headers, timeout=10,
                 )
                 response.raise_for_status()
-                # Exact structure of the response is to be determined at
-                # implementation time — probably ``list[str]`` or
-                # ``{'results': [...]}`` per DRF conventions. Handle both.
                 payload = response.json()
-                # HERMES /api/v0/topics/ returns ``{'topics': [...]}``. Handle
-                # both DRF-pagination shape (``{'results': [...]}``) and bare
-                # list too so the code tolerates a future endpoint change.
+
+                # figure out what the payload looks like (we don't know a priori)
+                # (we are trying to get_topic_choices from the payload).)
                 if isinstance(payload, dict):
                     if 'topics' in payload:
                         topics = payload['topics']
@@ -234,6 +232,7 @@ class HermesDataService(DataService):
             except (TypeError, KeyError, ValueError) as exc:
                 logger.warning('Unexpected HERMES topics response shape: %s', exc)
                 choices = []
+        # hopefully we've figured out what the topic choices are
         return choices
 
     def build_query_parameters(self, parameters, **kwargs):
@@ -244,21 +243,21 @@ class HermesDataService(DataService):
         The built dict is cached on ``self.query_parameters`` so that
         ``query_service()`` does not have to re-derive it.
         """
-        params: dict = {}
+        query_parameters: dict = {}
         if parameters.get('search'):
-            params['search'] = parameters['search']
+            query_parameters['search'] = parameters['search']
         if parameters.get('topics'):
             # HERMES ``/query`` expects repeatable ``topic=`` parameters to
             # carry the multi-select. requests handles list values that way
             # by default.
-            params['topic'] = parameters['topics']
+            query_parameters['topic'] = parameters['topics']
         if parameters.get('published_after'):
-            params['published_after'] = parameters['published_after']
+            query_parameters['published_after'] = parameters['published_after']
         if parameters.get('published_before'):
-            params['published_before'] = parameters['published_before']
-        params['page_size'] = 25
-        self.query_parameters = params
-        return params
+            query_parameters['published_before'] = parameters['published_before']
+        query_parameters['page_size'] = 25
+        self.query_parameters = query_parameters
+        return query_parameters
 
     def query_service(self, data, **kwargs):
         """Send the query to HERMES and cache the response on ``self.query_results``.
@@ -282,8 +281,7 @@ class HermesDataService(DataService):
         """Return the list of per-message dicts the framework's results partial iterates over.
 
         The framework calls this after ``query_service()`` has populated
-        ``self.query_results``. Verified live response shape (2026-04-23):
-        ``{'messages': [...], 'next': '<cursor>', 'prev': '<cursor>'}``
+        ``self.query_results``. 
         — HERMES uses cursor-based pagination and puts the rows under
         ``'messages'``. We return just the first page; walking the
         cursors is a follow-up when a dataset demands it.
@@ -292,12 +290,12 @@ class HermesDataService(DataService):
         DRF-style ``{'results': [...]}`` and bare list. Unknown shapes
         return ``[]``.
         """
-        # If query_service has not been called yet, call it so there is
-        # something to return. The parent DataService's query_photometry /
-        # query_spectroscopy implementations use the same pattern.
+        # call query_service if we haven't already
         if not self.query_results:
             self.query_service(query_parameters, **kwargs)
 
+        # figure out what the query_results are
+        # NOTE: all calls to isinstance in this module are code smell
         if isinstance(self.query_results, dict):
             # The canonical HERMES /query response shape.
             if 'messages' in self.query_results:
@@ -312,14 +310,7 @@ class HermesDataService(DataService):
         else:
             return []
 
-        # HERMES archive rows look like
-        # ``{'metadata': {'topic', 'timestamp'}, 'annotations': {'title', 'sender',
-        # 'con_text_uuid', 'file_name', ...}}``. The results partial
-        # (hermes_query_results_table.html) renders ``result.topic``,
-        # ``result.title``, ``result.published``, ``result.submitter``,
-        # ``result.uuid`` — flat top-level keys. Promote the nested values
-        # here so the template stays simple; leave the original nested
-        # structure in place so downstream code (to_target) can reach it.
+        # prepare the rows for what the template expects 
         for row in rows:
             _flatten_hermes_archive_row(row)
         return rows
@@ -333,37 +324,31 @@ class HermesDataService(DataService):
         (no ``data.photometry`` / ``data.targets`` / ``data.spectroscopy``),
         so we first GET the full message body from HERMES by uuid, then
         delegate to ``ingest_hermes_alert`` — the same function the
-        Hopskotch stream handler calls. This ensures archive-ingest and
-        stream-ingest write the same rows to the TOM's database for the
-        same message.
+        Hopskotch stream handler calls. So, the DataService and the
+        alerthandel funnel into the same code path.
+
 
         Returns the ``(Target, extras_dict, aliases_list)`` tuple the
         framework expects. Returns ``(None, {}, [])`` if the full message
-        cannot be fetched — the framework will log the empty save and
-        skip the row rather than crashing.
+        cannot be fetched (log the empty save and skip the row if we
+        can't get beyond the meta-data the query returned.
         """
         if not target_result:
             raise ValueError('to_target requires a target_result (HERMES message dict).')
 
-        # Fetch the full message body by uuid. The archive /query endpoint
-        # gave us only metadata + annotations; ingest_hermes_alert needs
-        # data.photometry / data.targets / data.spectroscopy.
+        # Fetch the full message body with the  uuid meta-data returned
+        # by the original query.
         message_uuid = target_result.get('uuid') or (
             target_result.get('annotations') or {}).get('con_text_uuid')
         if not message_uuid:
-            logger.warning('to_target: no uuid on target_result; skipping. keys=%s',
-                           list(target_result.keys()))
+            logger.warning(f'to_target: no uuid on target_result; skipping. '
+                           f'keys={list(target_result.keys())}')
             return None, {}, []
         full_body = self._fetch_full_message(message_uuid)
         if full_body is None:
             return None, {}, []
 
-        # The /api/v0/query/message/<uuid>/ response has three top-level
-        # keys — ``metadata``, ``annotations``, ``message`` — where
-        # ``message`` is the published body (what ``publish_to_hermes``
-        # originally POSTed) with keys like ``topic`` / ``title`` /
-        # ``data.targets`` / ``data.photometry`` / ``data.spectroscopy``.
-        # ``ingest_hermes_alert`` expects *that* shape, so unwrap here.
+        # get the message data into the form the ingest_hermes_alert expect
         published_message = full_body.get('message') if isinstance(full_body, dict) else None
         if not published_message:
             logger.warning(
@@ -373,8 +358,10 @@ class HermesDataService(DataService):
             return None, {}, []
 
         # ingest_hermes_alert creates Targets + ReducedDatums + DataProducts
-        # and returns a summary we repackage for the framework's caller.
+        # and returns a summary
         summary = ingest_hermes_alert(alert=published_message, metadata=None)
+        
+        # unpack the summary for the DataService
         primary_target = summary['targets'][0] if summary.get('targets') else None
         extras = summary.get('target_extras', {})
         aliases = summary.get('aliases', [])
@@ -408,6 +395,7 @@ class HermesDataService(DataService):
         """Path to the advanced partial, which adds the topic multi-select."""
         return 'tom_hermes/partials/hermes_advanced_form.html'
 
+    # NOTE: unclear if we really need this:
     def get_additional_context_data(self):
         """Return extra template context used by the results partial.
 

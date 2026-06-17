@@ -5,6 +5,16 @@ from django import forms
 
 from tom_dataservices.forms import BaseQueryForm
 
+from tom_hermes.models import HermesProfile
+
+
+class HermesProfileForm(forms.ModelForm):
+    """Edit-form for a ``HermesProfile``.
+
+    """
+    class Meta:
+        model = HermesProfile
+
 
 class HermesForm(BaseQueryForm):
     """Query form for ``HermesDataService``.

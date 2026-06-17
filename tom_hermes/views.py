@@ -51,9 +51,17 @@ class HermesProfileUpdateView(LoginRequiredMixin, UpdateView):
     """
 
     model = HermesProfile
+<<<<<<< HEAD
     fields = ['hermes_api_key']
     template_name = 'tom_hermes/hermes_update_user_profile.html'
 
+=======
+    fields = []
+    template_name = 'tom_hermes/hermes_update_user_profile.html'
+
+    # Custom form class handles the encrypted hermes_api_key field.
+    form_class = HermesProfileForm
+>>>>>>> e177c2d (bulk commit of unreviewed changes)
 
     def get_success_url(self):
         """Return the user-profile page URL so the user sees the updated card after saving."""
@@ -74,8 +82,10 @@ class TargetHermesPreloadView(SingleObjectMixin, View):
     so they finalize the submission on HERMES.
 
     Distinct from ``HermesSharingBackend.share`` (the registry-dispatch
-    path used by ``DataShareView``) — that path posts the message
-    definitively; this path bounces the user out to HERMES for review.
+    path used by ``DataShareView``, currently dormant pending the
+    return of ``tom_common.sharing``) — that path, when active, posts
+    the message definitively; this path bounces the user out to HERMES
+    for review.
     """
 
     model = Target

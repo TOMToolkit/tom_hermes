@@ -41,35 +41,21 @@ def resolve_hermes_credentials(user=None) -> dict:
     ``settings.DATA_SHARING['hermes']`` provides them; ``'base_url'``
     falls back to ``'https://hermes.lco.global/'``.
 
-    Reading an ``EncryptedProperty`` off ``HermesProfile`` requires the
-    Django session cipher — which is bound to an authenticated request.
-    Background callers (management commands, signal handlers) pass
-    ``user=None`` (or an ``AnonymousUser``) and the function falls
-    straight through to the settings lookup.
     """
     result = {
         'api_key': None,
         'base_url': None,
     }
 
-    # Per-user path: only if the request carries an authenticated User and
-    # that User has a populated HermesProfile. Gating on is_authenticated
-    # keeps AnonymousUser (and plain ``None``) from reaching the Profile
-    # lookup, which would fail because related filters require a saved User.
+    # first, try (to get creds) from HermesProfile
     if user is not None and getattr(user, 'is_authenticated', False):
         profile = HermesProfile.objects.filter(user=user).first()
         if profile is not None:
-            # Lazy import to avoid pulling tom_common.session_utils at
-            # module load time (it depends on Django session middleware
-            # being configured).
-            from tom_common.session_utils import get_encrypted_field
-            api_key = get_encrypted_field(user, profile, 'hermes_api_key')
+            api_key = profile.hermes_api_key
             if api_key:
                 result['api_key'] = api_key
 
-    # TOM-wide fallback: settings.DATA_SHARING['hermes']. Always consulted
-    # for base_url (which is rarely per-user). Consulted for api_key only
-    # if the Profile did not supply one.
+    # second, try settings.DATA_SHARING
     cfg = getattr(settings, 'DATA_SHARING', {}).get('hermes', {})
     if not result['api_key'] and cfg.get('HERMES_API_KEY'):
         result['api_key'] = cfg['HERMES_API_KEY']

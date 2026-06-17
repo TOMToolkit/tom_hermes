@@ -1,12 +1,18 @@
 """
-HermesSharingBackend — the SharingBackend plug-in registered by ``TomHermesConfig``.
+HermesSharingBackend — the SharingBackend plug-in for HERMES.
 
 ### What lives here
 
-- ``HermesSharingBackend`` — subclass of ``tom_common.sharing.SharingBackend``.
-  Discovered by ``tom_common.sharing.get_sharing_backends()`` via
-  ``TomHermesConfig.sharing_backends()``. Its ``share()`` method is the
-  entry point from ``tom_dataproducts.views.DataShareView``.
+- ``SharingBackend`` — abstract base class for sharing destinations. This class
+  originated in ``tom_common.sharing`` and was removed from ``tom_base`` along
+  with its registry (``get_sharing_backends()``). The definition has been
+  inlined here as a stop-gap so ``HermesSharingBackend`` continues to compile
+  and tests continue to run. When the host-side ``SharingBackend`` returns
+  upstream, delete this inlined copy and restore the import from
+  ``tom_common.sharing``.
+- ``HermesSharingBackend`` — subclass of ``SharingBackend``. Once the host
+  registry returns, will be advertised by ``TomHermesConfig.sharing_backends()``
+  and dispatched to by ``tom_dataproducts.views.DataShareView``.
 
 ### What does NOT live here
 
@@ -16,9 +22,14 @@ HermesSharingBackend — the SharingBackend plug-in registered by ``TomHermesCon
 """
 from __future__ import annotations
 
-from django.conf import settings
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
+<<<<<<< HEAD
 # from tom_common.sharing import SharingBackend
+=======
+from django.conf import settings
+>>>>>>> e177c2d (bulk commit of unreviewed changes)
 
 from tom_hermes.credentials import resolve_hermes_credentials
 from tom_hermes.sharing.publisher import (
@@ -27,15 +38,100 @@ from tom_hermes.sharing.publisher import (
     publish_to_hermes,
 )
 
+if TYPE_CHECKING:
+    from django.contrib.auth.models import User
+    from django.db.models import QuerySet
+
+
+class SharingBackend(ABC):
+    """Base class (abstract) for a data-sharing destination.
+
+    Each subclass represents one destination family: one class for HERMES,
+    one for TOM-to-TOM, and so on. Instances are short-lived and created
+    per ``share()`` invocation by the consumer code.
+    """
+
+    # ``name`` is:
+    #   - the key in the dict returned by ``get_sharing_backends()``;
+    #   - used as the prefix of the form's ``share_destination`` value, which is
+    #     formatted as the string ``'<name>:<sub-destination>'``
+    #     (e.g. ``'hermes:gw.lvk.public'``, or ``'tom:tom_b'``);
+    #   - the value that ``DataShareView.post()`` parses out of
+    #     ``share_destination`` to look up this backend's class and
+    #     dispatch to its ``share()`` method.
+    # Required: set to a short, unique, machine-readable string in every subclass.
+    name: str = ''
+
+    # ``verbose_name`` is the human-readable label shown as the heading above
+    # this backend's destinations in the share-destination dropdown.
+    # Required: set in every subclass.
+    verbose_name: str = ''
+
+    @classmethod
+    def get_destination_choices(cls, user: User | None = None) -> list:
+        """Return the (value, label) pairs that populate this backend's options in the share-destination dropdown.
+
+        Called by ``DataShareForm.__init__`` at form-render time. Each
+        returned ``value`` is a string formatted as
+        ``'<cls.name>:<sub-destination>'`` so ``DataShareView.post()`` can
+        parse the prefix and look up this class in the registry. The
+        returned ``label`` is what the user sees.
+
+        Implementations typically call the destination (e.g., to list
+        topics), or read ``settings.DATA_SHARING``, to enumerate configured
+        sub-destinations.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def share(self, form_data: dict, *,
+              reduced_datums: QuerySet | None = None,
+              targets: QuerySet | None = None,
+              data_products: QuerySet | None = None,
+              user: User | None = None,
+              **kwargs) -> dict:
+        """Execute the share operation.
+
+        Called by ``DataShareView.post()`` (and by the shims in
+        ``tom_dataproducts.sharing``) after a successful form submission.
+
+        Returns a feedback dict with at least
+        ``{'status': 'success'|'error', 'message': str}`` (older code
+        returns just ``{'message': str}``; both are tolerated by the
+        sharing feedback handler).
+        """
+
+    def validate_credentials(self, user: User | None = None) -> bool:
+        """Check that the user has credentials configured for this backend.
+
+        Called by ``DataShareForm.clean()`` when the form is about to
+        submit. Default returns True (the backend needs no per-user
+        credentials). Subclasses override to check e.g. that a
+        ``HermesProfile`` API key is set for the current user.
+        """
+        return True
+
 
 # class HermesSharingBackend(SharingBackend):
 #     """SharingBackend that publishes TOM data to HERMES.
 
+<<<<<<< HEAD
 #     Registered by ``tom_hermes.apps.TomHermesConfig.sharing_backends()`` and
 #     discovered by ``tom_common.sharing.get_sharing_backends()``. Its
 #     ``name = 'hermes'`` is the prefix in the share-destination form field
 #     value (``'hermes:<topic>'``); the sub-destination half is the HERMES
 #     topic the message is published to.
+=======
+    Currently dormant: the host-side registry (``tom_common.sharing.get_sharing_backends()``
+    and the ``DataShareView`` dispatch path) has been removed from tom_base.
+    The class is kept intact, with the upstream ``SharingBackend`` inlined above,
+    so that when the registry returns we re-add the AppConfig advertisement
+    and the dispatch path lights back up unchanged.
+
+    ``name = 'hermes'`` is the prefix in the share-destination form field
+    value (``'hermes:<topic>'``); the sub-destination half is the HERMES
+    topic the message is published to.
+>>>>>>> e177c2d (bulk commit of unreviewed changes)
 
 #     The ``share`` method is the main entry point: it picks the right HERMES
 #     topic out of ``form_data``, assembles a ``BuildHermesMessage`` from
