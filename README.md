@@ -11,14 +11,6 @@ Install the module into your TOM environment:
 
     pip install tom-hermes
 
-Add `tom_hermes.hermes.HermesBroker` to the `TOM_ALERT_CLASSES` in your TOM's `settings.py`:
-
-    TOM_ALERT_CLASSES = [
-        'tom_alerts.brokers.antares.ANTARESBroker',
-        ...
-        'tom_hermes.hermes.HermesBroker',
-    ]
-
 
 Add `tom_hermes` to your `settings.INSTALLED_APPS`:
 
@@ -30,6 +22,8 @@ Add `tom_hermes` to your `settings.INSTALLED_APPS`:
         'tom_hermes'
     ]
 ```
+
+
 
 Add `HERMES_API_URL` to your `settings.py` if you want to point to a hermes instance other than `https://hermes.lco.global`.
 This is the same settings variable that `tom_nonlocalizedevents` uses to make queries to hermes as well.

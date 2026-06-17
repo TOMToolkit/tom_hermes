@@ -1,18 +1,3 @@
-"""
-Forms for tom_hermes.
-
-### What lives here
-
-- ``HermesProfileForm`` — ModelForm for editing the per-user ``HermesProfile``
-  credential entries. Handles the encrypted ``hermes_api_key`` with an
-  extra ``CharField``, since ``EncryptedProperty`` descriptors are not
-  plain model fields and ``ModelForm`` does not produce form fields for
-  them automatically. Pattern copied from ``tom_eso.forms.ESOProfileForm``.
-- ``HermesForm`` — the DataService query form rendered by
-  ``HermesDataService``. Inherits from ``tom_dataservices.forms.BaseQueryForm``
-  so the framework's save-query / run-query flow treats it as a normal
-  DataService form.
-"""
 from __future__ import annotations
 
 from crispy_forms.layout import Fieldset, Layout
@@ -72,7 +57,10 @@ class HermesForm(BaseQueryForm):
         # is allowed to read. Import lazily to avoid a circular import at
         # module load (dataservices.hermes imports tom_hermes.forms).
         from tom_hermes.dataservices.hermes import HermesDataService
-        self.fields['topics'].choices = HermesDataService.get_topic_choices(user=self.user)
+        try:
+            self.fields['topics'].choices = HermesDataService.get_topic_choices(user=self.user)
+        except AttributeError:
+            self.fields['topics'].choices = HermesDataService.get_topic_choices()
 
     def get_layout(self):
         """Return the crispy Layout for the form.
@@ -82,7 +70,10 @@ class HermesForm(BaseQueryForm):
         class (the partials pick which fields to render).
         """
         return Layout(
-            Fieldset('Search text', 'search'),
             Fieldset('Topics', 'topics'),
             Fieldset('Time', 'published_after', 'published_before'),
         )
+
+    def simple_fields(self):
+        """Return List of fields to be included in the simple form."""
+        return ['search']
