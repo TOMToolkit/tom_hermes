@@ -130,7 +130,7 @@ class HermesDataService(DataService):
         the user has no configured HERMES key, returns an empty dict and lets HERMES
         produce its own 403, which the view surfaces as a query-feedback banner.
         """
-        creds = resolve_hermes_credentials(self.user)
+        creds = resolve_hermes_credentials(getattr(self, 'user', None))
         api_key = creds.get('api_key')
         if not api_key:
             return {}
