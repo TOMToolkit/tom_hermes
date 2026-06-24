@@ -25,11 +25,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-<<<<<<< HEAD
 # from tom_common.sharing import SharingBackend
-=======
 from django.conf import settings
->>>>>>> e177c2d (bulk commit of unreviewed changes)
 
 from tom_hermes.credentials import resolve_hermes_credentials
 from tom_hermes.sharing.publisher import (
@@ -113,32 +110,25 @@ class SharingBackend(ABC):
 
 
 # class HermesSharingBackend(SharingBackend):
-#     """SharingBackend that publishes TOM data to HERMES.
+    # """SharingBackend that publishes TOM data to HERMES.
 
-<<<<<<< HEAD
-#     Registered by ``tom_hermes.apps.TomHermesConfig.sharing_backends()`` and
-#     discovered by ``tom_common.sharing.get_sharing_backends()``. Its
-#     ``name = 'hermes'`` is the prefix in the share-destination form field
-#     value (``'hermes:<topic>'``); the sub-destination half is the HERMES
-#     topic the message is published to.
-=======
-    Currently dormant: the host-side registry (``tom_common.sharing.get_sharing_backends()``
-    and the ``DataShareView`` dispatch path) has been removed from tom_base.
-    The class is kept intact, with the upstream ``SharingBackend`` inlined above,
-    so that when the registry returns we re-add the AppConfig advertisement
-    and the dispatch path lights back up unchanged.
+    # Registered by ``tom_hermes.apps.TomHermesConfig.sharing_backends()`` and
+    # discovered by ``tom_common.sharing.get_sharing_backends()``. Its
 
-    ``name = 'hermes'`` is the prefix in the share-destination form field
-    value (``'hermes:<topic>'``); the sub-destination half is the HERMES
-    topic the message is published to.
->>>>>>> e177c2d (bulk commit of unreviewed changes)
-
-#     The ``share`` method is the main entry point: it picks the right HERMES
-#     topic out of ``form_data``, assembles a ``BuildHermesMessage`` from
-#     the form's title/author/message fields, filters the supplied datums
-#     against the already-published-to-this-topic check, and calls
-#     ``publish_to_hermes``.
-#     """
+    # ``name = 'hermes'`` is the prefix in the share-destination form field
+    # value (``'hermes:<topic>'``); the sub-destination half is the HERMES
+    # topic the message is published to.
+    # Currently dormant: the host-side registry (``tom_common.sharing.get_sharing_backends()``
+    # and the ``DataShareView`` dispatch path) has been removed from tom_base.
+    # The class is kept intact, with the upstream ``SharingBackend`` inlined above,
+    # so that when the registry returns we re-add the AppConfig advertisement
+    # and the dispatch path lights back up unchanged.
+    # The ``share`` method is the main entry point: it picks the right HERMES
+    # topic out of ``form_data``, assembles a ``BuildHermesMessage`` from
+    # the form's title/author/message fields, filters the supplied datums
+    # against the already-published-to-this-topic check, and calls
+    # ``publish_to_hermes``.
+    # """
 
 #     # ``name = 'hermes'`` because the share-destination form field encodes
 #     # a choice from this backend as ``'hermes:<topic>'``. DataShareView.post()

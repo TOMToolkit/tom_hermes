@@ -51,17 +51,8 @@ class HermesProfileUpdateView(LoginRequiredMixin, UpdateView):
     """
 
     model = HermesProfile
-<<<<<<< HEAD
     fields = ['hermes_api_key']
     template_name = 'tom_hermes/hermes_update_user_profile.html'
-
-=======
-    fields = []
-    template_name = 'tom_hermes/hermes_update_user_profile.html'
-
-    # Custom form class handles the encrypted hermes_api_key field.
-    form_class = HermesProfileForm
->>>>>>> e177c2d (bulk commit of unreviewed changes)
 
     def get_success_url(self):
         """Return the user-profile page URL so the user sees the updated card after saving."""
