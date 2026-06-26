@@ -28,8 +28,9 @@ def hermes_profile_data(user) -> dict:
         profile = HermesProfile.objects.create(user=user)
 
     # Need to include hermes_api_key separately since it's an encrypted field
-    exclude_fields = ['user', 'id', 'hermes_api_key']
-    profile_dict = model_to_dict(user.demoprofile, exclude=exclude_fields)
+    exclude_fields = ['user', 'id']  # , 'hermes_api_key']
+    #profile_dict = model_to_dict(user.demoprofile, exclude=exclude_fields)
+    profile_dict = {'key-test': 'value-test'}
 
     context = {
         'user': user,
