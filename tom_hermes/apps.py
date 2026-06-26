@@ -55,7 +55,6 @@ class TomHermesConfig(AppConfig):
     #    """
     #    return [{'class': f'{self.name}.sharing.HermesSharingBackend'}]
 
-
     def profile_details(self):
         """Register the user-profile page fragment showing HERMES credential status.
 
@@ -80,3 +79,15 @@ class TomHermesConfig(AppConfig):
         entries. All our URLs live under ``/hermes/``.
         """
         return [path('hermes/', include(f'{self.name}.urls'))]
+
+    def target_detail_buttons(self):
+        """
+        Integration point for adding buttons to the target detail view.
+
+        This adds a button to the TargetDetail page to share the target to HERMES.
+        The partial defines the button, it's href URL, and it's CSS class. title attribute and
+        button text come from the value of the `button_text` key in the context dictionary
+        returned by the partial, which is the value (the) of the "context" key (callable) below.
+        """
+        return [{'partial': f'{self.name}/partials/hermes_share_button.html',
+                 'context': f'{self.name}.templatetags.hermes_extras.share_button'}]

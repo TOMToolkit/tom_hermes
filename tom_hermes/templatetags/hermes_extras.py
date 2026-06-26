@@ -39,3 +39,16 @@ def hermes_profile_data(user) -> dict:
     }
 
     return context
+
+
+def share_button(context):
+    """
+    Returns the app specific context for making a target detail button.
+
+    This function is specified in `TOMHermesConfig.target_detail_buttons` as the fuction to
+    call to get the context sent to the partial also specified there (`hermes_share_button.html`).
+    """
+
+    context = {'button_text': 'Share to HERMES'}
+
+    return context
