@@ -49,6 +49,8 @@ from tom_hermes.alertstreams.ingester import ingest_hermes_alert
 from tom_hermes.credentials import resolve_hermes_credentials
 from tom_hermes.forms import HermesForm
 
+from tom_targets.models import Target
+
 logger = logging.getLogger(__name__)
 
 
@@ -158,8 +160,8 @@ class HermesDataService(DataService):
             'base_url': base,
             'info_url': cls.info_url,  # also class attribute
 
-            
-            'query_url': f'{base}/api/v0/query',  # Generic message search (wraps archive-api), returns msg meta-data
+            # 'query_url': f'{base}/api/v0/query',  # Generic message search (wraps archive-api), returns msg meta-data
+            'target_url': f'{base}/api/v0/targets/',
 
             'topics_url': f'{base}/api/v0/topics/',  # for topic verification
 
@@ -244,18 +246,14 @@ class HermesDataService(DataService):
         ``query_service()`` does not have to re-derive it.
         """
         query_parameters: dict = {}
-        if parameters.get('search'):
-            query_parameters['search'] = parameters['search']
-        if parameters.get('topics'):
-            # HERMES ``/query`` expects repeatable ``topic=`` parameters to
-            # carry the multi-select. requests handles list values that way
-            # by default.
-            query_parameters['topic'] = parameters['topics']
-        if parameters.get('published_after'):
-            query_parameters['published_after'] = parameters['published_after']
-        if parameters.get('published_before'):
-            query_parameters['published_before'] = parameters['published_before']
-        query_parameters['page_size'] = 25
+        print(parameters)
+        if parameters.get('target_name'):
+            query_parameters['name'] = parameters['target_name']
+        if parameters.get('uuid'):
+            query_parameters['referenced_by_uuid'] = parameters['uuid']
+        if parameters.get('ra') and parameters.get('dec') and parameters.get('radius'):
+            query_parameters['cone_search'] = f'{parameters.get('ra')}, {parameters.get('dec')}, '
+            f'{parameters.get('radius')}'
         self.query_parameters = query_parameters
         return query_parameters
 
@@ -267,8 +265,10 @@ class HermesDataService(DataService):
         ``self.query_results`` so later methods (``query_targets``,
         ``to_target``) can reuse them without re-querying.
         """
+        print(data)
+        print("===========================================")
         response = requests.get(
-            self.get_urls(url_type='query_url'),
+            self.get_urls(url_type='target_url'),
             params=data,
             headers=self.build_headers(),
             timeout=30,
@@ -294,6 +294,11 @@ class HermesDataService(DataService):
         if not self.query_results:
             self.query_service(query_parameters, **kwargs)
 
+        targets_results = self.query_results['results']
+        print(self.query_results['results'])
+        print("======================================")
+        return targets_results
+
         # figure out what the query_results are
         # NOTE: all calls to isinstance in this module are code smell
         if isinstance(self.query_results, dict):
@@ -315,6 +320,28 @@ class HermesDataService(DataService):
             _flatten_hermes_archive_row(row)
         return rows
 
+    def create_target_from_query(self, target_result, **kwargs):
+        """Create a new target from a single instance of the target results.
+        :param target_result: dictionary describing target details based on query result
+        :returns: target object
+        :rtype: `Target`
+        """
+
+        # Need to move to query_targets
+        message_uuid = target_result['uuid']
+        full_message = self._fetch_full_message(message_uuid) or {}
+        target_table = full_message.get('message', {}).get('data', {}).get('targets', [])
+        print(full_message)
+        print("==========================================")
+        print(target_table)
+
+        
+
+        # target = Target(
+        #     name=target_result['name']
+        #     )
+        return None
+
     def to_target(self, target_result=None, **kwargs):
         """Create TOM database rows for one selected query-result row.
 
@@ -333,39 +360,39 @@ class HermesDataService(DataService):
         cannot be fetched (log the empty save and skip the row if we
         can't get beyond the meta-data the query returned.
         """
-        if not target_result:
-            raise ValueError('to_target requires a target_result (HERMES message dict).')
+        # if not target_result:
+        #     raise ValueError('to_target requires a target_result (HERMES message dict).')
 
-        # Fetch the full message body with the  uuid meta-data returned
-        # by the original query.
-        message_uuid = target_result.get('uuid') or (
-            target_result.get('annotations') or {}).get('con_text_uuid')
-        if not message_uuid:
-            logger.warning(f'to_target: no uuid on target_result; skipping. '
-                           f'keys={list(target_result.keys())}')
-            return None, {}, []
-        full_body = self._fetch_full_message(message_uuid)
-        if full_body is None:
-            return None, {}, []
+        # # Fetch the full message body with the  uuid meta-data returned
+        # # by the original query.
+        # message_uuid = target_result.get('uuid') or (
+        #     target_result.get('annotations') or {}).get('con_text_uuid')
+        # if not message_uuid:
+        #     logger.warning(f'to_target: no uuid on target_result; skipping. '
+        #                    f'keys={list(target_result.keys())}')
+        #     return None, {}, []
+        # full_body = self._fetch_full_message(message_uuid)
+        # if full_body is None:
+        #     return None, {}, []
 
-        # get the message data into the form the ingest_hermes_alert expect
-        published_message = full_body.get('message') if isinstance(full_body, dict) else None
-        if not published_message:
-            logger.warning(
-                'HERMES message response has no "message" key; cannot ingest. Keys=%s',
-                list(full_body.keys()) if isinstance(full_body, dict) else '<non-dict>',
-            )
-            return None, {}, []
+        # # get the message data into the form the ingest_hermes_alert expect
+        # published_message = full_body.get('message') if isinstance(full_body, dict) else None
+        # if not published_message:
+        #     logger.warning(
+        #         'HERMES message response has no "message" key; cannot ingest. Keys=%s',
+        #         list(full_body.keys()) if isinstance(full_body, dict) else '<non-dict>',
+        #     )
+        #     return None, {}, []
 
-        # ingest_hermes_alert creates Targets + ReducedDatums + DataProducts
-        # and returns a summary
-        summary = ingest_hermes_alert(alert=published_message, metadata=None)
+        # # ingest_hermes_alert creates Targets + ReducedDatums + DataProducts
+        # # and returns a summary
+        # summary = ingest_hermes_alert(alert=published_message, metadata=None)
         
-        # unpack the summary for the DataService
-        primary_target = summary['targets'][0] if summary.get('targets') else None
-        extras = summary.get('target_extras', {})
-        aliases = summary.get('aliases', [])
-        return primary_target, extras, aliases
+        # # unpack the summary for the DataService
+        # primary_target = summary['targets'][0] if summary.get('targets') else None
+        # extras = summary.get('target_extras', {})
+        # aliases = summary.get('aliases', [])
+        # return primary_target, extras, aliases
 
     def _fetch_full_message(self, message_uuid: str):
         """GET the full HERMES message body by uuid; return the JSON dict or ``None``.
