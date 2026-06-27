@@ -59,60 +59,40 @@ class HermesProfileUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy('user-profile')
 
 
-class TargetHermesPreloadView(SingleObjectMixin, View):
-    """Stash a draft HERMES message for one Target's selected datums and redirect to HERMES.
+class TargetHermesPreloadView(LoginRequiredMixin, SingleObjectMixin, View):
+    """Redirect to HERMES with a draft message for the Target (from TargetDetail page).
 
-    Reached via POST from the "Open in Hermes 🗗" button on the share-data
-    dialog for a Target (see ``target_share.html`` and
-    ``photometry_datalist_for_target.html`` in ``tom_base``).
-
-    The flow: read the form's selected ``share-box`` ReducedDatum pks,
-    build a ``BuildHermesMessage`` envelope from the form fields, call
-    ``preload_to_hermes`` (which POSTs the draft to HERMES and gets back
-    a key), then redirect the user to ``<base_url>submit-message?id=<key>``
-    so they finalize the submission on HERMES.
-
-    Distinct from ``HermesSharingBackend.share`` (the registry-dispatch
-    path used by ``DataShareView``, currently dormant pending the
-    return of ``tom_common.sharing``) — that path, when active, posts
-    the message definitively; this path bounces the user out to HERMES
-    for review.
+    Reached via POST from the "Share to HERMES" button on the Target detail
+    page (see ``partials/hermes_share_button.html`` and the
+    ``target_detail_buttons`` integration point in ``apps.py``).
     """
-
     model = Target
-    # Set ``app_label`` for Django-Guardian permissions so this works with
-    # custom Target models that override ``Meta.app_label``.
-    permission_required = f'{Target._meta.app_label}.change_target'
 
     def post(self, request, *args, **kwargs):
-        target = self.get_object()
-        # Per-user credentials first (HermesProfile), TOM-wide settings as
-        # fallback. Same lookup the rest of tom_hermes uses.
+        target: Target = self.get_object()
+
+        # get the HERMES credentials from the profile or settings
         creds = resolve_hermes_credentials(user=request.user)
         if not creds.get('api_key'):
             return HttpResponseBadRequest(
-                'No HERMES API key configured for this user '
-                '(check the HermesProfile or DATA_SHARING settings).'
+                'No HERMES API key configured (set HermesProfile.hermes_api_key '
+                "or HERMES_CONFIGURATION['HERMES_API_TOKEN'])."
             )
 
-        # The share_destination field is encoded as 'hermes:<topic>'; the
-        # topic is the part after the colon.
+        # get topic and title for the draft message from the post
         topic = request.POST.get('share_destination', '').split(':')[-1]
         title = request.POST.get('share_title') or f'Updated data for {target.name}'
 
-        # DEFAULT_AUTHORS is a TOM-wide convenience fallback only — there is
-        # no per-user authors field on HermesProfile yet.
-        cfg = getattr(settings, 'DATA_SHARING', {}).get('hermes', {})
         hermes_message = BuildHermesMessage(
             title=title,
             topic=topic,
-            submitter=request.POST.get('submitter'),
+            submitter=request.POST.get('submitter', ''),
             message=request.POST.get('share_message', ''),
-            authors=cfg.get('DEFAULT_AUTHORS'),
+            authors='',  # user will have to fill in authors on HERMES page (for now)
         )
-        reduced_datums = ReducedDatum.objects.filter(
-            pk__in=request.POST.getlist('share-box', [])
-        )
+
+        # Incldue all the data associated with the target, the user edit on HERMES
+        reduced_datums = ReducedDatum.objects.filter(target=target)
         preload_key = preload_to_hermes(
             hermes_message, reduced_datums, [target], user=request.user
         )
