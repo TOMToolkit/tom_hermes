@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 
 from django import template
+from django.conf import settings
 from django.forms.models import model_to_dict
 
 from tom_hermes.models import HermesProfile
@@ -49,7 +50,12 @@ def share_button(context):
     This function is specified in `TOMHermesConfig.target_detail_buttons` as the fuction to
     call to get the context sent to the partial also specified there (`hermes_share_button.html`).
     """
+    # get the default topic from HERMES_CONFIGURATION (use tomtoolkit.test) is it's not set
+    hermes_config = getattr(settings, 'HERMES_CONFIGURATION', {})
+    hermes_topic = hermes_config.get('DEFAULT_TOPIC', 'tomtoolkit.test')
 
-    context = {'button_text': 'Share to HERMES'}
-
+    context = {
+        'button_text': 'Share to HERMES',
+        'hermes_topic': hermes_topic,
+    }
     return context

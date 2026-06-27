@@ -19,7 +19,7 @@ SCRAM creds for ``readstreams`` come from
 ### Lookup order
 
 1. ``HermesProfile`` for ``user`` (per-user credentials, encrypted at rest).
-2. ``settings.DATA_SHARING['hermes']`` (TOM-wide shared credentials).
+2. ``settings.HERMES_CONFIGURATION['HERMES_API_TOKEN']`` (TOM-wide shared token).
 
 Both paths are fully supported: the TOM-wide path is the canonical
 mechanism when a TOM operator authenticates all users with a single set
@@ -38,7 +38,7 @@ def resolve_hermes_credentials(user=None) -> dict:
 
     Returns a dict with keys ``'api_key'`` and ``'base_url'``. Values
     default to ``None`` if neither the user's Profile nor
-    ``settings.DATA_SHARING['hermes']`` provides them; ``'base_url'``
+    ``settings.HERMES_CONFIGURATION`` provides them; ``'base_url'``
     falls back to ``'https://hermes.lco.global/'``.
 
     """
@@ -55,9 +55,9 @@ def resolve_hermes_credentials(user=None) -> dict:
             if api_key:
                 result['api_key'] = api_key
 
-    # second, try settings.DATA_SHARING
-    cfg = getattr(settings, 'DATA_SHARING', {}).get('hermes', {})
-    if not result['api_key'] and cfg.get('HERMES_API_KEY'):
-        result['api_key'] = cfg['HERMES_API_KEY']
+    # second, fall back to the TOM-wide HERMES_CONFIGURATION settings dict
+    cfg = getattr(settings, 'HERMES_CONFIGURATION', {})
+    if not result['api_key'] and cfg.get('HERMES_API_TOKEN'):
+        result['api_key'] = cfg['HERMES_API_TOKEN']
     result['base_url'] = cfg.get('BASE_URL', 'https://hermes.lco.global/')
     return result

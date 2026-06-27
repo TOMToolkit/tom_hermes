@@ -45,7 +45,7 @@ commit ``2df08f22``). They have been moved here as part of consolidating
 HERMES-specific code into ``tom_hermes``. Credential reads have been
 changed to go through ``tom_hermes.credentials.resolve_hermes_credentials``
 so a per-user ``HermesProfile`` credential takes precedence over the
-TOM-wide ``settings.DATA_SHARING['hermes']`` credential.
+TOM-wide ``settings.HERMES_CONFIGURATION`` credential.
 """
 from __future__ import annotations
 
@@ -324,7 +324,7 @@ def publish_to_hermes(message_info, datums, targets=None, *, user=None, **kwargs
 
     Credential lookup: ``tom_hermes.credentials.resolve_hermes_credentials(user)``.
     Reads the HERMES API key first from the User's ``HermesProfile`` and
-    falls back to ``settings.DATA_SHARING['hermes']['HERMES_API_KEY']``.
+    falls back to ``settings.HERMES_CONFIGURATION['HERMES_API_TOKEN']``.
 
     No side effect on the local DB: the published datums keep whatever
     ``source_name`` they already had. (Earlier versions of this code
@@ -349,11 +349,11 @@ def publish_to_hermes(message_info, datums, targets=None, *, user=None, **kwargs
         return {'message': (
             'No HERMES API key available. Configure either per-user credentials on '
             "the user's HermesProfile page, or TOM-wide credentials at "
-            "settings.DATA_SHARING['hermes']['HERMES_API_KEY']."
+            "settings.HERMES_CONFIGURATION['HERMES_API_TOKEN']."
         )}
     if not creds.get('base_url'):
         return {'message': (
-            'No HERMES BASE_URL configured. Set settings.DATA_SHARING["hermes"]["BASE_URL"].'
+            'No HERMES BASE_URL configured. Set settings.HERMES_CONFIGURATION["BASE_URL"].'
         )}
 
     stream_base_url = creds['base_url']

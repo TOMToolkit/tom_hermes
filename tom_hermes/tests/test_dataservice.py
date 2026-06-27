@@ -121,8 +121,8 @@ class QueryTargetsTests(TestCase):
 
 # ``get_topic_choices`` requires credentials (the HERMES /topics/ endpoint
 # returns 403 without auth). These tests use settings-based credentials
-# (HERMES_API_KEY in DATA_SHARING) so they exercise the real code path
-# without needing a test User with a HermesProfile and session cipher.
+# (HERMES_API_TOKEN in HERMES_CONFIGURATION) so they exercise the real code
+# path without needing a test User with a HermesProfile and session cipher.
 #
 # We also override CACHES to use an in-memory backend for this test class.
 # Some integration TOMs (including the reference TOM_hermes_migration) use
@@ -131,9 +131,7 @@ class QueryTargetsTests(TestCase):
 # The LocMemCache used here is per-process and wiped when the test
 # process exits, so test pollution of the production cache becomes impossible.
 @override_settings(
-    DATA_SHARING={
-        'hermes': {'HERMES_API_KEY': 'test-key', 'BASE_URL': 'https://hermes.example/'},
-    },
+    HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'test-key', 'BASE_URL': 'https://hermes.example/'},
     CACHES={
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -175,7 +173,7 @@ class GetTopicChoicesTests(TestCase):
             choices = HermesDataService.get_topic_choices()
         self.assertEqual(choices, [])
 
-    @override_settings(DATA_SHARING={})
+    @override_settings(HERMES_CONFIGURATION={})
     def test_no_credentials_returns_empty_without_http_call(self):
         # New behavior: get_topic_choices short-circuits to [] before
         # making any HTTP call if no credentials are available. This
@@ -362,16 +360,14 @@ class BuildHeadersTests(TestCase):
     no-credentials behaviours are guarded against regression.
     """
 
-    @override_settings(DATA_SHARING={
-        'hermes': {'HERMES_API_KEY': 'settings-key', 'BASE_URL': 'https://h.example/'},
-    })
+    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'settings-key', 'BASE_URL': 'https://h.example/'})
     def test_settings_api_key_produces_token_header(self):
         # No user → resolve_hermes_credentials reads from settings. Real
         # code path, no mocks: settings → resolve → build_headers.
         svc = HermesDataService()
         self.assertEqual(svc.build_headers(), {'Authorization': 'Token settings-key'})
 
-    @override_settings(DATA_SHARING={})
+    @override_settings(HERMES_CONFIGURATION={})
     def test_no_credentials_returns_empty_headers(self):
         # When neither user profile nor settings provide an api_key,
         # build_headers returns {} so HERMES will respond 403, which the
