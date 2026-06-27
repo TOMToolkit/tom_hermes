@@ -50,6 +50,7 @@ from tom_hermes.credentials import resolve_hermes_credentials
 from tom_hermes.forms import HermesForm
 
 from tom_targets.models import Target
+from tom_dataproducts.models import PhotometryReducedDatum
 
 logger = logging.getLogger(__name__)
 
@@ -238,15 +239,11 @@ class HermesDataService(DataService):
         return choices
 
     def build_query_parameters(self, parameters, **kwargs):
-        """Translate cleaned form data into HERMES ``/query`` URL parameters.
-
-        Only keys the user actually filled in are included; HERMES is
-        expected to treat absent keys as "do not filter on this field."
-        The built dict is cached on ``self.query_parameters`` so that
-        ``query_service()`` does not have to re-derive it.
+        """Translate cleaned form data into HERMES ``/target`` URL parameters.
         """
         query_parameters: dict = {}
-        print(parameters)
+        if parameters.get('exact_name'):
+            query_parameters['name_exact'] = parameters['exact_name']
         if parameters.get('target_name'):
             query_parameters['name'] = parameters['target_name']
         if parameters.get('uuid'):
@@ -260,13 +257,8 @@ class HermesDataService(DataService):
     def query_service(self, data, **kwargs):
         """Send the query to HERMES and cache the response on ``self.query_results``.
 
-        Required abstract method (``DataService.query_service`` in
-        ``tom_dataservices.dataservices``). Results are cached on
-        ``self.query_results`` so later methods (``query_targets``,
-        ``to_target``) can reuse them without re-querying.
+        Required abstract method
         """
-        print(data)
-        print("===========================================")
         response = requests.get(
             self.get_urls(url_type='target_url'),
             params=data,
@@ -278,47 +270,16 @@ class HermesDataService(DataService):
         return self.query_results
 
     def query_targets(self, query_parameters, **kwargs) -> list:
-        """Return the list of per-message dicts the framework's results partial iterates over.
-
-        The framework calls this after ``query_service()`` has populated
-        ``self.query_results``. 
-        — HERMES uses cursor-based pagination and puts the rows under
-        ``'messages'``. We return just the first page; walking the
-        cursors is a follow-up when a dataset demands it.
-
-        Also tolerates two alternative shapes for forward-compat / tests:
-        DRF-style ``{'results': [...]}`` and bare list. Unknown shapes
-        return ``[]``.
+        """
+        Specialized query to retrieve targets
         """
         # call query_service if we haven't already
         if not self.query_results:
             self.query_service(query_parameters, **kwargs)
 
         targets_results = self.query_results['results']
-        print(self.query_results['results'])
-        print("======================================")
+
         return targets_results
-
-        # figure out what the query_results are
-        # NOTE: all calls to isinstance in this module are code smell
-        if isinstance(self.query_results, dict):
-            # The canonical HERMES /query response shape.
-            if 'messages' in self.query_results:
-                rows = self.query_results['messages']
-            # DRF pagination — accepted for forward-compat / test mocks.
-            elif 'results' in self.query_results:
-                rows = self.query_results['results']
-            else:
-                return []
-        elif isinstance(self.query_results, list):
-            rows = self.query_results
-        else:
-            return []
-
-        # prepare the rows for what the template expects 
-        for row in rows:
-            _flatten_hermes_archive_row(row)
-        return rows
 
     def create_target_from_query(self, target_result, **kwargs):
         """Create a new target from a single instance of the target results.
@@ -327,72 +288,79 @@ class HermesDataService(DataService):
         :rtype: `Target`
         """
 
-        # Need to move to query_targets
-        message_uuid = target_result['uuid']
-        full_message = self._fetch_full_message(message_uuid) or {}
-        target_table = full_message.get('message', {}).get('data', {}).get('targets', [])
-        print(full_message)
-        print("==========================================")
-        print(target_table)
+        if target_result.get('right_ascension') and target_result.get('declination'):
+            target_type = 'SIDEREAL'
+        else:
+            target_type = 'NON_SIDEREAL'
+        target = Target(
+            name=target_result['name'],
+            type=target_type,
+            ra=target_result.get('right_ascension'),
+            dec=target_result.get('declination'),
+            pm_ra=target_result.get('pm_ra'),
+            pm_dec=target_result.get('pm_dec'),
+            epoch_of_elements=target_result.get('epoch_of_elements'),
+            mean_anomaly=target_result.get('mean_anomaly'),
+            arg_of_perihelion=target_result.get('argument_of_the_perihelion'),
+            eccentricity=target_result.get('eccentricity'),
+            lng_asc_node=target_result.get('longitude_of_the_ascending_node'),
+            inclination=target_result.get('orbital_inclination'),
+            semimajor_axis=target_result.get('semimajor_axis'),
+            epoch_of_perihelion=target_result.get('epoch_of_perihelion'),
+            )
+        return target
 
-        
-
-        # target = Target(
-        #     name=target_result['name']
-        #     )
-        return None
-
-    def to_target(self, target_result=None, **kwargs):
-        """Create TOM database rows for one selected query-result row.
-
-        Called by the ``tom_dataservices`` framework
-        (``CreateTargetFromQueryView``) once per row the user selects in
-        the results partial. The archive-query result is metadata-only
-        (no ``data.photometry`` / ``data.targets`` / ``data.spectroscopy``),
-        so we first GET the full message body from HERMES by uuid, then
-        delegate to ``ingest_hermes_alert`` — the same function the
-        Hopskotch stream handler calls. So, the DataService and the
-        alerthandel funnel into the same code path.
-
-
-        Returns the ``(Target, extras_dict, aliases_list)`` tuple the
-        framework expects. Returns ``(None, {}, [])`` if the full message
-        cannot be fetched (log the empty save and skip the row if we
-        can't get beyond the meta-data the query returned.
+    def build_query_parameters_from_target(self, target, **kwargs):
         """
-        # if not target_result:
-        #     raise ValueError('to_target requires a target_result (HERMES message dict).')
+        This is a method that builds query parameters based on an existing target object that will be recognized by
+        `query_service()`.
+        This can be done by either by re-creating the form fields set by the Data Service Form and then calling
+        `self.build_query_parameters()` with the results, or we can reproduce a limited set of parameters uniquely for
+        a target query.
 
-        # # Fetch the full message body with the  uuid meta-data returned
-        # # by the original query.
-        # message_uuid = target_result.get('uuid') or (
-        #     target_result.get('annotations') or {}).get('con_text_uuid')
-        # if not message_uuid:
-        #     logger.warning(f'to_target: no uuid on target_result; skipping. '
-        #                    f'keys={list(target_result.keys())}')
-        #     return None, {}, []
-        # full_body = self._fetch_full_message(message_uuid)
-        # if full_body is None:
-        #     return None, {}, []
+        :param target: A target object to be queried
+        :return: query_parameters (usually a dict) that can be understood by `query_service()`
+        """
+        query_parameters = self.build_query_parameters(parameters={'exact_name': target.name})
+        return query_parameters
 
-        # # get the message data into the form the ingest_hermes_alert expect
-        # published_message = full_body.get('message') if isinstance(full_body, dict) else None
-        # if not published_message:
-        #     logger.warning(
-        #         'HERMES message response has no "message" key; cannot ingest. Keys=%s',
-        #         list(full_body.keys()) if isinstance(full_body, dict) else '<non-dict>',
-        #     )
-        #     return None, {}, []
+    def query_photometry(self, query_parameters, **kwargs):
+        """Set up and run a specialized query for a DataService’s photometry service.
+        :returns: photometry_results
+        :rtype: Usually a List of Dictionaries
+        """
 
-        # # ingest_hermes_alert creates Targets + ReducedDatums + DataProducts
-        # # and returns a summary
-        # summary = ingest_hermes_alert(alert=published_message, metadata=None)
-        
-        # # unpack the summary for the DataService
-        # primary_target = summary['targets'][0] if summary.get('targets') else None
-        # extras = summary.get('target_extras', {})
-        # aliases = summary.get('aliases', [])
-        # return primary_target, extras, aliases
+        target_results = self.query_service(query_parameters)['results']
+        photometry_results = []
+        for target_result in target_results:
+            for message in target_result['messages']:
+                uuid = message['uuid']
+                full_message = self._fetch_full_message(uuid)
+                message_phot = full_message.get('message', {}).get('data',{}).get('photometry',[])
+                photometry_results += message_phot
+        return photometry_results
+
+    def create_reduced_datums_from_query(self, target, data=[], data_type='photometry', **kwargs):
+        """
+        Create and save new reduced_datums of the appropriate data_type from the query results
+        Be sure to use `ReducedDatum.objects.get_or_create()` when creating new objects.
+
+        :param target: Target Object to be associated with the reduced data
+        :param data: List of data dictionaries of the appropriate `data_type`
+        :param data_type: An appropriate data type as listed in tom_dataproducts.models.DATA_TYPE_CHOICES
+        :return: List of Reduced Datums (either retrieved or created)
+        """
+        reduced_datums = []
+        for datum in data:
+            print(datum)
+            print("================================")
+            if data_type == 'photometry':
+                reduced_datum, __ = PhotometryReducedDatum.objects.get_or_create(
+                    target=target,
+                    source_name=self.name,
+                )
+                reduced_datums.append(reduced_datum)
+        return reduced_datums
 
     def _fetch_full_message(self, message_uuid: str):
         """GET the full HERMES message body by uuid; return the JSON dict or ``None``.
@@ -413,25 +381,3 @@ class HermesDataService(DataService):
         except requests.RequestException as exc:
             logger.warning('Could not fetch HERMES message %s: %s', message_uuid, exc)
             return None
-
-    def get_simple_form_partial(self):
-        """Path to the simplified search partial (free-text + dates)."""
-        return 'tom_hermes/partials/hermes_simple_form.html'
-
-    def get_advanced_form_partial(self):
-        """Path to the advanced partial, which adds the topic multi-select."""
-        return 'tom_hermes/partials/hermes_advanced_form.html'
-
-    # NOTE: unclear if we really need this:
-    def get_additional_context_data(self):
-        """Return extra template context used by the results partial.
-
-        ``tom_nonlocalizedevents_installed`` lets the results template
-        show a "Create NonLocalizedEvent" action when that app is
-        available; otherwise that UI is hidden.
-        """
-        return {
-            'tom_nonlocalizedevents_installed':
-                django_apps.is_installed('tom_nonlocalizedevents'),
-            'version': __version__,
-        }
