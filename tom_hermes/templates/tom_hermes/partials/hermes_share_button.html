@@ -1,1 +1,12 @@
-<a href="{% url 'tom_hermes:target-preload' pk=target.id %}" title="{{button_text}}" class="btn  btn-info">{{button_text}}</a>
+{% comment %}
+"Share to HERMES" button for the Target detail page. POSTs to the
+TargetHermesPreloadView, creating a draft message on HERMES and redirects
+there for the the user to review and submit. This is a <form> so it can POST
+to the preload View.
+{% endcomment %}
+<form method="post" action="{% url 'tom_hermes:target-preload' pk=target.id %}" class="d-inline">
+  {% csrf_token %}
+  <input type="hidden" name="share_destination" value="{{ hermes_topic }}">
+  <input type="hidden" name="submitter" value="{{ request.user }}">
+  <button type="submit" title="{{ button_text }}" class="btn btn-info">{{ button_text }}</button>
+</form>
