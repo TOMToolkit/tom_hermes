@@ -1,51 +1,27 @@
-{% comment %}
-HERMES results table partial.
-
-Rendered inside tom_dataservices/query_result.html, which wraps the partial in a
-<form> that POSTs selected rows to the framework's CreateTargetFromQueryView. Each
-checkbox's name is "selected_results"; the framework collects those and calls
-HermesDataService.to_target(result) for each. to_target() delegates into the shared
-ingest_hermes_alert function.
-
-Context (from tom_dataservices.views.RunQueryView.get_context_data +
-HermesDataService.query_targets):
-  results  — list of per-message dicts from the HERMES /query response. Each dict has
-             at least 'uuid', 'topic', 'title', 'published'; may have 'submitter', 'authors'.
-  tom_nonlocalizedevents_installed — bool added by get_additional_context_data.
-  version  — tom_hermes version string, shown in the footer.
-{% endcomment %}
 <table class="table table-striped">
     <thead>
         <tr>
             <th><input type="checkbox" id="selectAll"/></th>
-            <th>Topic</th>
-            <th>Title</th>
-            <th>Published</th>
-            <th>Submitter</th>
-            <th>HERMES</th>
+            <th>Name</th>
+            <th>RA</th>
+            <th>Dec</th>
+            <th>Hermes Messages</th>
         </tr>
     </thead>
     <tbody>
         {% for result in results %}
         <tr>
-            {% comment %}
-            The framework identifies selected rows by checkbox name='selected_results'.
-            The VALUE must be ``result.id`` — the integer position in the results list
-            that the framework assigns in RunQueryView.get_context_data (``result['id'] = i``)
-            and writes to the cache as ``result_{i}``. CreateTargetFromQueryView then does
-            ``cache.get(f'result_{result_id}')`` to recover the row. Using the HERMES uuid
-            here would produce a cache miss and a "Could not create targets" error.
-            {% endcomment %}
             <td><input type="checkbox" name="selected_results" value="{{ result.id }}"/></td>
-            <td>{{ result.topic }}</td>
-            <td>{{ result.title|default:'(no title)' }}</td>
-            <td>{{ result.published }}</td>
-            <td>{{ result.submitter|default:'' }}</td>
+            <td>{{ result.name }}</td>
+            <td>{{ result.right_ascension_sexagesimal }}</td>
+            <td>{{ result.declination_sexagesimal }}</td>
             <td>
-                {% if result.uuid %}
-                    <a href="https://hermes.lco.global/message/{{ result.uuid }}"
-                       target="_blank" rel="noopener">view</a>
-                {% endif %}
+                {% for message in result.messages %}
+                    {% if message.uuid %}
+                        <a href="https://hermes.lco.global/message/{{ message.uuid }}"
+                        target="_blank" rel="noopener">{{ forloop.counter }}</a>,
+                    {% endif %}
+                {% endfor %}
             </td>
         </tr>
         {% empty %}
