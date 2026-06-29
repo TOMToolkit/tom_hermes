@@ -25,15 +25,17 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-# from tom_common.sharing import SharingBackend
-from django.conf import settings
+# These import are waiting for the sharing backend infrastructure to
+# be replaced into tom_base.
 
-from tom_hermes.credentials import resolve_hermes_credentials
-from tom_hermes.sharing.publisher import (
-    BuildHermesMessage,
-    get_hermes_topics,
-    publish_to_hermes,
-)
+# from tom_common.sharing import SharingBackend
+# from django.conf import settings
+# from tom_hermes.credentials import resolve_hermes_credentials
+# from tom_hermes.sharing.publisher import (
+#     BuildHermesMessage,
+#     get_hermes_topics,
+#     publish_to_hermes,
+# )
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import User

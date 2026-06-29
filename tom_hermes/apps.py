@@ -48,12 +48,12 @@ class TomHermesConfig(AppConfig):
     # ``tom_hermes.sharing``
     # TODO: uncomment this once the host-side registry returns.
     #
-    #def sharing_backends(self):
-    #    """Advertise ``HermesSharingBackend`` to the tom_common.sharing discovery.
-    #
-    #    ``tom_common.sharing.get_sharing_backends()`` calls this method.
-    #    """
-    #    return [{'class': f'{self.name}.sharing.HermesSharingBackend'}]
+    # ####def sharing_backends(self):
+    # ####    """Advertise ``HermesSharingBackend`` to the tom_common.sharing discovery.
+    # ####
+    # ####    ``tom_common.sharing.get_sharing_backends()`` calls this method.
+    # ####    """
+    # ####    return [{'class': f'{self.name}.sharing.HermesSharingBackend'}]
 
     def profile_details(self):
         """Register the user-profile page fragment showing HERMES credential status.

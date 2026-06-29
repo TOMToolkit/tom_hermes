@@ -158,7 +158,6 @@ class HermesDataService(DataService):
             'base_url': base,
             'info_url': cls.info_url,  # also class attribute
 
-            
             'query_url': f'{base}/api/v0/query',  # Generic message search (wraps archive-api), returns msg meta-data
 
             'topics_url': f'{base}/api/v0/topics/',  # for topic verification
@@ -281,7 +280,7 @@ class HermesDataService(DataService):
         """Return the list of per-message dicts the framework's results partial iterates over.
 
         The framework calls this after ``query_service()`` has populated
-        ``self.query_results``. 
+        ``self.query_results``.
         — HERMES uses cursor-based pagination and puts the rows under
         ``'messages'``. We return just the first page; walking the
         cursors is a follow-up when a dataset demands it.
@@ -310,7 +309,7 @@ class HermesDataService(DataService):
         else:
             return []
 
-        # prepare the rows for what the template expects 
+        # prepare the rows for what the template expects
         for row in rows:
             _flatten_hermes_archive_row(row)
         return rows
@@ -360,7 +359,7 @@ class HermesDataService(DataService):
         # ingest_hermes_alert creates Targets + ReducedDatums + DataProducts
         # and returns a summary
         summary = ingest_hermes_alert(alert=published_message, metadata=None)
-        
+
         # unpack the summary for the DataService
         primary_target = summary['targets'][0] if summary.get('targets') else None
         extras = summary.get('target_extras', {})

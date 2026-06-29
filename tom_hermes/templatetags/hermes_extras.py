@@ -7,7 +7,6 @@ import logging
 
 from django import template
 from django.conf import settings
-from django.forms.models import model_to_dict
 
 from tom_hermes.models import HermesProfile
 
@@ -28,15 +27,10 @@ def hermes_profile_data(user) -> dict:
     except HermesProfile.DoesNotExist:
         profile = HermesProfile.objects.create(user=user)
 
-    # Need to include hermes_api_key separately since it's an encrypted field
-    exclude_fields = ['user', 'id']  # , 'hermes_api_key']
-    #profile_dict = model_to_dict(user.demoprofile, exclude=exclude_fields)
-    profile_dict = {'key-test': 'value-test'}
-
     context = {
         'user': user,
         'hermes_profile': profile,
-        'profile_data_list': profile_dict,
+        'profile_data_list': [{}],  # Not quite sure what this does
         'hermes_api_key': profile.hermes_api_key
     }
 
