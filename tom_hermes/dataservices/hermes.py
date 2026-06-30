@@ -353,8 +353,6 @@ class HermesDataService(DataService):
         """
         reduced_datums = []
         for datum in data:
-            print(datum)
-            print("================================")
             if data_type == 'photometry':
                 reduced_datum, __ = PhotometryReducedDatum.objects.get_or_create(
                     target=target,
