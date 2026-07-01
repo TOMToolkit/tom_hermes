@@ -26,8 +26,6 @@ class HermesForm(BaseQueryForm):
     radius = forms.FloatField(required=False, label="Search Radius (deg)")
     uuid = forms.CharField(required=False, label='Message UUID')
 
-
-
     # # Topic multi-select. Choices are populated at ``__init__`` time by
     # # calling ``HermesDataService.get_topic_choices(user=self.user)`` (which
     # # hits HERMES once per user per hour and caches). Leaving this empty
