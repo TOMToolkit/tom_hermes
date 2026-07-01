@@ -353,7 +353,7 @@ def publish_to_hermes(message_info, datums, targets=None, *, user=None, **kwargs
         )}
     if not creds.get('base_url'):
         return {'message': (
-            'No HERMES BASE_URL configured. Set settings.HERMES_CONFIGURATION["BASE_URL"].'
+            'No HERMES BASE_URL configured. Set settings.HERMES_CONFIGURATION["HERMES_BASE_URL"].'
         )}
 
     stream_base_url = creds['base_url']
