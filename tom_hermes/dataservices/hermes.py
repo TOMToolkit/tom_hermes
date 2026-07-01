@@ -39,13 +39,11 @@ import logging
 from datetime import datetime, timezone
 
 import requests
-from django.apps import apps as django_apps
 from django.core.cache import cache
 
 from tom_dataservices.dataservices import DataService
 
 from tom_hermes import __version__
-from tom_hermes.alertstreams.ingester import ingest_hermes_alert
 from tom_hermes.credentials import resolve_hermes_credentials
 from tom_hermes.forms import HermesForm
 
@@ -337,7 +335,7 @@ class HermesDataService(DataService):
             for message in target_result['messages']:
                 uuid = message['uuid']
                 full_message = self._fetch_full_message(uuid)
-                message_phot = full_message.get('message', {}).get('data',{}).get('photometry',[])
+                message_phot = full_message.get('message', {}).get('data', {}).get('photometry', [])
                 photometry_results += message_phot
         return photometry_results
 
