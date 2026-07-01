@@ -250,8 +250,8 @@ class HermesDataService(DataService):
         if parameters.get('uuid'):
             query_parameters['referenced_by_uuid'] = parameters['uuid']
         if parameters.get('ra') and parameters.get('dec') and parameters.get('radius'):
-            query_parameters['cone_search'] = (f'{parameters.get('ra')}, {parameters.get('dec')}, '
-                                               f'{parameters.get('radius')}')
+            query_parameters['cone_search'] = (f'{parameters.get("ra")}, {parameters.get("dec")}, '
+                                               f'{parameters.get("radius")}')
         self.query_parameters = query_parameters
         return query_parameters
 
