@@ -36,7 +36,7 @@ from tom_targets.models import Target, TargetList
 
 from tom_hermes.credentials import resolve_hermes_credentials
 from tom_hermes.models import HermesProfile
-from tom_hermes.sharing.publisher import BuildHermesMessage, preload_to_hermes
+from tom_hermes.publisher import BuildHermesMessage, preload_to_hermes
 
 
 class HermesProfileUpdateView(LoginRequiredMixin, UpdateView):

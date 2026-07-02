@@ -84,21 +84,13 @@ def get_hermes_data_converter_class():
     """Return the configured HermesDataConverter class (defaults to ``HermesDataConverter``).
 
     A TOM operator can point at a custom converter by setting
-    ``settings.DATA_SHARING['hermes']['DATA_CONVERTER_CLASS']`` to the
-    dotted path of a subclass. The default path resolves via
-    ``tom_hermes.sharing.__init__``'s re-export so the public import path
-    stays stable even though the class actually lives in this module.
+    ``settings.HERMES_CONFIGURATION['DATA_CONVERTER_CLASS']`` to the
+    dotted path of a subclass. 
 
-    Uses a ``getattr`` guard on ``settings.DATA_SHARING`` and ``.get`` on
-    the inner dict because a TOM that relies solely on per-user
-    ``HermesProfile`` credentials has no ``DATA_SHARING`` in settings at
-    all — and ``get_hermes_data_converter_class`` still runs on every
-    publish path.
     """
-    data_sharing = getattr(settings, 'DATA_SHARING', {}) or {}
-    hermes_cfg = data_sharing.get('hermes', {}) or {}
+    hermes_cfg = getattr(settings, 'HERMES_CONFIGURATION', {})
     return import_string(hermes_cfg.get(
-        'DATA_CONVERTER_CLASS', 'tom_hermes.sharing.HermesDataConverter'))
+        'DATA_CONVERTER_CLASS', 'tom_hermes.publisher.HermesDataConverter'))
 
 
 class HermesDataConverter:
@@ -117,12 +109,8 @@ class HermesDataConverter:
         # known-good data to skip the checks.
         self.validate = validate
 
-    def get_hermes_target(self, target):
+    def build_hermes_target_table_row(self, target):
         """Return a HERMES target-table row for a TOM BaseTarget instance.
-
-        Handles both SIDEREAL (``ra``/``dec``) and NON_SIDEREAL
-        (orbital-elements) Targets. Aliases from the Target's
-        ``TargetName`` set are attached under the ``aliases`` key.
         """
         if target.type == 'SIDEREAL':
             target_table_row = {
@@ -154,11 +142,9 @@ class HermesDataConverter:
         target_table_row['aliases'] = [alias.name for alias in target.aliases.all()]
         return target_table_row
 
-    def get_hermes_photometry(self, datum):
-        """Return a HERMES photometry-table row for a TOM photometry ReducedDatum.
+    def build_hermes_photometry_table_row(self, datum):
+        """Return a HERMES photometry-table row for a TOM PhotometryReducedDatum.
 
-        Produces ``brightness`` (for detections) or ``limiting_brightness``
-        (for non-detections) based on which is present in the datum.
         """
         phot_table_row = {
             'target_name': datum.target.name,
@@ -446,9 +432,9 @@ def create_hermes_alert(message_info, datums, targets=None, **kwargs):
     hermes_data_converter = get_hermes_data_converter_class()(validate=True)
     for datum in datums:
         if datum.target.name not in hermes_target_dict:
-            hermes_target_dict[datum.target.name] = hermes_data_converter.get_hermes_target(datum.target)
+            hermes_target_dict[datum.target.name] = hermes_data_converter.build_hermes_target_table_row(datum.target)
         if datum.data_type == 'photometry':
-            hermes_photometry_data.append(hermes_data_converter.get_hermes_photometry(datum))
+            hermes_photometry_data.append(hermes_data_converter.build_hermes_photometry_table_row(datum))
         elif datum.data_type == 'spectroscopy':
             hermes_spectroscopy_data.append(hermes_data_converter.get_hermes_spectroscopy(datum))
 
@@ -457,7 +443,7 @@ def create_hermes_alert(message_info, datums, targets=None, **kwargs):
     # the Target).
     for target in targets:
         if target.name not in hermes_target_dict:
-            hermes_target_dict[target.name] = hermes_data_converter.get_hermes_target(target)
+            hermes_target_dict[target.name] = hermes_data_converter.build_hermes_target_table_row(target)
 
     alert = {
         'topic': message_info.topic,
