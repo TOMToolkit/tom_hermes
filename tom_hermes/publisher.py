@@ -28,7 +28,7 @@ def get_hermes_data_converter_class():
 
     A TOM operator can point at a custom converter by setting
     ``settings.HERMES_CONFIGURATION['DATA_CONVERTER_CLASS']`` to the
-    dotted path of a subclass. 
+    dotted path of a subclass.
     """
     hermes_cfg = getattr(settings, 'HERMES_CONFIGURATION', {})
     return import_string(hermes_cfg.get(

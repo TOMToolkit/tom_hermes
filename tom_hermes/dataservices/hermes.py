@@ -339,7 +339,7 @@ class HermesDataService(DataService):
             for message in target_result['messages']:
                 uuid = message['uuid']
                 full_message = self._fetch_full_message(uuid)
-                target_table = full_message.get('message', {}).get('data',{}).get('targets',[])
+                target_table = full_message.get('message', {}).get('data', {}).get('targets', [])
                 # Find the appropriate target in the target table and return aliases
                 for target_obj in target_table:
                     if target_obj['name'] == target_result['name']:
@@ -384,7 +384,7 @@ class HermesDataService(DataService):
                     instrument=datum.get('instrument'),
                     brightness=datum.get('brightness'),
                     limit=datum.get('limiting_brightness'),
-                    brightness_error= datum.get('brightness_error'),
+                    brightness_error=datum.get('brightness_error'),
                     bandpass=datum.get('bandpass'),
                     unit=datum.get('brightness_unit') or datum.get('limiting_brightness_unit'),
                     exposure_time=datum.get('exposure_time'),
