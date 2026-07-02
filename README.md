@@ -29,11 +29,13 @@ Configure your app with TOM-wide credentials by adding the following to your `se
 
 ```python
     HERMES_CONFIGURATION = {
-        'HERMES_API_TOKEN': os.getenv('HERMES_API_TOKEN', '1234567890abcdefg'),,
-        'HERMES_BASE_URL': 'https://hermes.lco.global/'
+        'HERMES_API_TOKEN': os.getenv('HERMES_API_TOKEN', '1234567890abcdefg'),
+        'HERMES_BASE_URL': 'https://hermes.lco.global/',
+        'DEFAULT_TOPIC': 'tomtoolkit.test',
     }
 ```
 
-You can add `HERMES_BASE_URL` to your `settings.py` if you want to point to a hermes instance other than `https://hermes.lco.global`.
+You can add `HERMES_BASE_URL` to your `settings.py` if you want to point to a hermes instance other than `https://hermes.lco.global`
+and `DEFAULT_TOPIC` if you want messages to default to a topic other than `'tomtoolkit.test'`.
 
 `Hermes` is now available as a Data Service from the nav bar. You may configure and execute your queries as you would any Data Service.

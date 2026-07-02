@@ -91,7 +91,7 @@ class TargetHermesPreloadView(LoginRequiredMixin, SingleObjectMixin, View):
             authors='',  # user will have to fill in authors on HERMES page (for now)
         )
 
-        # Incldue all the data associated with the target, the user edit on HERMES
+        # Include all the data associated with the target, edit on HERMES
         reduced_datums = ReducedDatum.objects.filter(target=target)
         preload_key = preload_to_hermes(
             hermes_message, reduced_datums, [target], user=request.user

@@ -41,15 +41,15 @@ def share_button(context):
     """
     Returns the app specific context for making a target detail button.
 
-    This function is specified in `TOMHermesConfig.target_detail_buttons` as the fuction to
+    This function is specified in `TOMHermesConfig.target_detail_buttons` as the function to
     call to get the context sent to the partial also specified there (`hermes_share_button.html`).
     """
-    # get the default topic from HERMES_CONFIGURATION (use tomtoolkit.test) is it's not set
+    # get the default topic from HERMES_CONFIGURATION (use tomtoolkit.test) if it's not set
     hermes_config = getattr(settings, 'HERMES_CONFIGURATION', {})
     hermes_topic = hermes_config.get('DEFAULT_TOPIC', 'tomtoolkit.test')
 
     context = {
-        'button_text': 'Share to HERMES',
+        'button_text': 'Submit to HERMES',
         'hermes_topic': hermes_topic,
     }
     return context
