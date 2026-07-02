@@ -29,7 +29,6 @@ def get_hermes_data_converter_class():
     A TOM operator can point at a custom converter by setting
     ``settings.HERMES_CONFIGURATION['DATA_CONVERTER_CLASS']`` to the
     dotted path of a subclass. 
-
     """
     hermes_cfg = getattr(settings, 'HERMES_CONFIGURATION', {})
     return import_string(hermes_cfg.get(
@@ -167,11 +166,13 @@ class BuildHermesMessage:
         self.extra_info = kwargs
 
 
-def publish_to_hermes(message_info, datums, targets=None, *, user=None, **kwargs):
+def publish_to_hermes(message_info, datums=None, targets=None, *, user=None, **kwargs):
     """POST a fully-assembled HERMES message to ``/api/v0/submit_message/``.
     """
     if targets is None:
         targets = Target.objects.none()
+    if datums is None:
+        datums = []
 
     creds = resolve_hermes_credentials(user)
     if not creds.get('api_key'):
@@ -262,9 +263,9 @@ def create_hermes_message(message_info, datums=None, targets=None, **kwargs):
     for datum in datums:
         if datum.target.name not in hermes_target_dict:
             hermes_target_dict[datum.target.name] = hermes_data_converter.build_hermes_target_table_row(datum.target)
-        if datum.data_type == 'photometry':
+        if isinstance(datum, PhotometryReducedDatum):
             hermes_photometry_data.append(hermes_data_converter.build_hermes_photometry_table_row(datum))
-        elif datum.data_type == 'spectroscopy':
+        elif isinstance(datum, SpectroscopyReducedDatum):
             hermes_spectroscopy_data.append(hermes_data_converter.build_hermes_spectroscopy_table_row(datum))
 
     # Next pull in submitted targets and build data tables

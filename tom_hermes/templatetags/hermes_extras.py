@@ -1,6 +1,3 @@
-"""
-Template tags for tom_hermes.
-"""
 from __future__ import annotations
 
 import logging
@@ -40,9 +37,6 @@ def hermes_profile_data(user) -> dict:
 def share_button(context):
     """
     Returns the app specific context for making a target detail button.
-
-    This function is specified in `TOMHermesConfig.target_detail_buttons` as the function to
-    call to get the context sent to the partial also specified there (`hermes_share_button.html`).
     """
     # get the default topic from HERMES_CONFIGURATION (use tomtoolkit.test) if it's not set
     hermes_config = getattr(settings, 'HERMES_CONFIGURATION', {})

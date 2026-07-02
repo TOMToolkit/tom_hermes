@@ -1,26 +1,3 @@
-"""
-Views for tom_hermes.
-
-### What lives here
-
-- ``HermesProfileUpdateView`` — ``UpdateView`` for editing a ``HermesProfile``.
-  Rendered at ``/hermes/users/<pk>/update/`` (see ``urls.py``) and reached
-  from the "Edit" icon on the HERMES card on the user profile page
-  (see ``templates/tom_hermes/partials/hermes_user_profile.html``).
-- ``TargetHermesPreloadView`` — POST handler for the "Open in Hermes 🗗"
-  button on a single Target's data-share dialog. Stashes a draft on
-  HERMES (``/api/v0/submit_message/preload/``) and redirects the user to
-  the HERMES UI to review and submit.
-- ``TargetGroupingHermesPreloadView`` — same workflow but for a
-  ``TargetList`` (group of Targets).
-
-The two preload views previously lived in ``tom_targets.views`` (in
-``tom_base``) and were the only thing pinning ``tom_base`` to a hard
-``import tom_hermes`` — they have been moved here so the dependency
-direction stays plugin → host. Callers from ``tom_base`` reach them
-through the ``tom_hermes:target-preload`` / ``tom_hermes:target-grouping-preload``
-URL names (see ``tom_hermes/urls.py``).
-"""
 from __future__ import annotations
 
 from django.conf import settings
@@ -41,13 +18,6 @@ from tom_hermes.publisher import BuildHermesMessage, preload_to_hermes
 
 class HermesProfileUpdateView(LoginRequiredMixin, UpdateView):
     """Edit view for the logged-in user's ``HermesProfile`` credentials.
-
-    The ``HermesProfile`` fields are displayed on the user-profile page via
-    the ``show_app_profiles`` inclusion tag in
-    ``tom_common.templates.tom_common.user_profile.html``, which in turn
-    calls each registered ``profile_details`` integration point (see
-    ``tom_hermes.apps.TomHermesConfig.profile_details``). The "Edit" icon
-    on the HERMES card links to this view.
     """
 
     model = HermesProfile
@@ -61,10 +31,6 @@ class HermesProfileUpdateView(LoginRequiredMixin, UpdateView):
 
 class TargetHermesPreloadView(LoginRequiredMixin, SingleObjectMixin, View):
     """Redirect to HERMES with a draft message for the Target (from TargetDetail page).
-
-    Reached via POST from the "Share to HERMES" button on the Target detail
-    page (see ``partials/hermes_share_button.html`` and the
-    ``target_detail_buttons`` integration point in ``apps.py``).
     """
     model = Target
 
@@ -75,26 +41,25 @@ class TargetHermesPreloadView(LoginRequiredMixin, SingleObjectMixin, View):
         creds = resolve_hermes_credentials(user=request.user)
         if not creds.get('api_key'):
             return HttpResponseBadRequest(
-                'No HERMES API key configured (set HermesProfile.hermes_api_key '
-                "or HERMES_CONFIGURATION['HERMES_API_TOKEN'])."
+                'No HERMES API key configured (set Hermes API key in User Profile '
+                "or HERMES_CONFIGURATION['HERMES_API_TOKEN'] in settings.py)."
             )
 
         # get topic and title for the draft message from the post
-        topic = request.POST.get('share_destination', '').split(':')[-1]
+        topic = request.POST.get('hermes_topic', '').split(':')[-1]
         title = request.POST.get('share_title') or f'Updated data for {target.name}'
 
         hermes_message = BuildHermesMessage(
             title=title,
             topic=topic,
             submitter=request.POST.get('submitter', ''),
-            message=request.POST.get('share_message', ''),
+            message=request.POST.get('message', ''),
             authors='',  # user will have to fill in authors on HERMES page (for now)
         )
 
-        # Include all the data associated with the target, edit on HERMES
-        reduced_datums = ReducedDatum.objects.filter(target=target)
+        # Pre-load message and get key for redirect
         preload_key = preload_to_hermes(
-            hermes_message, reduced_datums, [target], user=request.user
+            hermes_message, [], [target], user=request.user
         )
         load_url = creds['base_url'] + f'submit-message?id={preload_key}'
         return HttpResponseRedirect(load_url)

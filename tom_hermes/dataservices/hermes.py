@@ -383,11 +383,11 @@ class HermesDataService(DataService):
                     telescope=datum.get('telescope'),
                     instrument=datum.get('instrument'),
                     brightness=datum.get('brightness'),
-                    limit=datum.get('limiting_brightness')
+                    limit=datum.get('limiting_brightness'),
                     brightness_error= datum.get('brightness_error'),
                     bandpass=datum.get('bandpass'),
                     unit=datum.get('brightness_unit') or datum.get('limiting_brightness_unit'),
-                    exposure_time=datum.get('exposure_time')
+                    exposure_time=datum.get('exposure_time'),
                 )
                 reduced_datums.append(reduced_datum)
         return reduced_datums

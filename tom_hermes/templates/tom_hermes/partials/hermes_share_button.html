@@ -1,12 +1,10 @@
 {% comment %}
-"Share to HERMES" button for the Target detail page. POSTs to the
-TargetHermesPreloadView, creating a draft message on HERMES and redirects
-there for the the user to review and submit. This is a <form> so it can POST
-to the preload View.
+  POSTs to the TargetHermesPreloadView
 {% endcomment %}
+{% load django_bootstrap5 %}
 <form method="post" action="{% url 'tom_hermes:target-preload' pk=target.id %}" target="_blank" class="d-inline">
   {% csrf_token %}
-  <input type="hidden" name="share_destination" value="{{ hermes_topic }}">
+  <input type="hidden" name="hermes_topic" value="{{ hermes_topic }}">
   <input type="hidden" name="submitter" value="{{ request.user }}">
-  <button type="submit" title="{{ button_text }}" class="btn btn-info">{{ button_text }}</button>
+  {% bootstrap_button button_text button_type="submit" button_class="btn btn-info" title=button_text %}
 </form>

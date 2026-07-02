@@ -1,30 +1,4 @@
-"""
-HERMES credential lookup: per-user profile, falling back to TOM-wide settings.
-
-### What lives here
-
-- ``resolve_hermes_credentials(user)`` — the one function that answers
-  the question "what HERMES credentials should I use for this user?"
-
-### Where it lives
-
-At the app root rather than inside ``tom_hermes.sharing`` because
-credentials are not a sharing-only concern. Today both ``sharing``
-and ``dataservices`` call it. A future per-user Hopskotch
-subscription path would add Kafka SCRAM credentials to the
-``HermesProfile`` and to the dict this function returns; today the
-SCRAM creds for ``readstreams`` come from
-``settings.ALERT_STREAMS[...]['OPTIONS']`` only.
-
-### Lookup order
-
-1. ``HermesProfile`` for ``user`` (per-user credentials, encrypted at rest).
-2. ``settings.HERMES_CONFIGURATION['HERMES_API_TOKEN']`` (TOM-wide shared token).
-
-Both paths are fully supported: the TOM-wide path is the canonical
-mechanism when a TOM operator authenticates all users with a single set
-of HERMES credentials.
-
+"""HERMES credential lookup: per-user profile, falling back to TOM-wide settings.
 """
 from __future__ import annotations
 
@@ -36,11 +10,8 @@ from tom_hermes.models import HermesProfile
 def resolve_hermes_credentials(user=None) -> dict:
     """Return the HERMES credentials dict to use for this User.
 
-    Returns a dict with keys ``'api_key'`` and ``'base_url'``. Values
-    default to ``None`` if neither the user's Profile nor
-    ``settings.HERMES_CONFIGURATION`` provides them; ``'base_url'``
-    falls back to ``'https://hermes.lco.global/'``.
-
+    Params: user
+    Return: dict:: {'api_key','base_url'}
     """
     result = {
         'api_key': None,
