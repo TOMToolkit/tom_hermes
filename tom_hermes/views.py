@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseBadRequest, HttpResponseRedirect
 from django.urls import reverse_lazy
@@ -8,8 +7,7 @@ from django.views.generic import View
 from django.views.generic.detail import SingleObjectMixin
 from django.views.generic.edit import UpdateView
 
-from tom_dataproducts.models import ReducedDatum
-from tom_targets.models import Target, TargetList
+from tom_targets.models import Target
 
 from tom_hermes.credentials import resolve_hermes_credentials
 from tom_hermes.models import HermesProfile

@@ -6,9 +6,6 @@ from __future__ import annotations
 import logging
 
 import requests
-from django.conf import settings
-from django.core.cache import cache
-from django.utils.module_loading import import_string
 
 from tom_targets.models import Target
 from tom_dataproducts.models import PhotometryReducedDatum, SpectroscopyReducedDatum
