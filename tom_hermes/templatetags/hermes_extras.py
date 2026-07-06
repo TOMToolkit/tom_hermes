@@ -1,12 +1,9 @@
-"""
-Template tags for tom_hermes.
-"""
 from __future__ import annotations
 
 import logging
 
 from django import template
-from django.forms.models import model_to_dict
+from django.conf import settings
 
 from tom_hermes.models import HermesProfile
 
@@ -27,15 +24,26 @@ def hermes_profile_data(user) -> dict:
     except HermesProfile.DoesNotExist:
         profile = HermesProfile.objects.create(user=user)
 
-    # Need to include hermes_api_key separately since it's an encrypted field
-    exclude_fields = ['user', 'id', 'hermes_api_key']
-    profile_dict = model_to_dict(user.hermesprofile, exclude=exclude_fields)
-
     context = {
         'user': user,
         'hermes_profile': profile,
-        'profile_data_list': profile_dict,
+        'profile_data_list': [{}],  # Not quite sure what this does
         'hermes_api_key': profile.hermes_api_key
     }
 
+    return context
+
+
+def share_button(context):
+    """
+    Returns the app specific context for making a target detail button.
+    """
+    # get the default topic from HERMES_CONFIGURATION (use tomtoolkit.test) if it's not set
+    hermes_config = getattr(settings, 'HERMES_CONFIGURATION', {})
+    hermes_topic = hermes_config.get('DEFAULT_TOPIC', 'tomtoolkit.test')
+
+    context = {
+        'button_text': 'Submit to HERMES',
+        'hermes_topic': hermes_topic,
+    }
     return context

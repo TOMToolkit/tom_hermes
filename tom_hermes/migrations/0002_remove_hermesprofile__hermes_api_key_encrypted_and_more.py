@@ -11,10 +11,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='hermesprofile',
-            name='_hermes_api_key_encrypted',
-        ),
         migrations.AddField(
             model_name='hermesprofile',
             name='hermes_api_key',

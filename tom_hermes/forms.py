@@ -8,12 +8,6 @@ from tom_dataservices.forms import BaseQueryForm
 
 class HermesForm(BaseQueryForm):
     """Query form for ``HermesDataService``.
-
-    Rendered by ``tom_dataservices.views.DataServiceQueryCreateView`` when
-    the user picks "HERMES Messaging Service" in the Data Services nav.
-    The framework uses ``BaseQueryForm.save()`` to persist a
-    ``DataServiceQuery`` row, and this form's ``cleaned_data`` is fed to
-    ``HermesDataService.build_query_parameters``.
     """
 
     target_name = forms.CharField(
@@ -26,54 +20,11 @@ class HermesForm(BaseQueryForm):
     radius = forms.FloatField(required=False, label="Search Radius (deg)")
     uuid = forms.CharField(required=False, label='Message UUID')
 
-
-
-    # # Topic multi-select. Choices are populated at ``__init__`` time by
-    # # calling ``HermesDataService.get_topic_choices(user=self.user)`` (which
-    # # hits HERMES once per user per hour and caches). Leaving this empty
-    # # means "any topic". Rendered as checkboxes because a list of topic
-    # # strings is easier to scan than a shift-click multi-select box.
-    # topics = forms.MultipleChoiceField(
-    #     required=False,
-    #     label='Topics',
-    #     help_text='Limit results to one or more topics. Leave empty for any topic.',
-    #     widget=forms.CheckboxSelectMultiple,
-    # )
-
-    # # Date filters. HTML date input widgets for a consistent UI; HERMES
-    # # accepts ISO date strings.
-    # published_after = forms.CharField(
-    #     required=False, label='Published after',
-    #     widget=forms.TextInput(attrs={'type': 'date'}),
-    # )
-    # published_before = forms.CharField(
-    #     required=False, label='Published before',
-    #     widget=forms.TextInput(attrs={'type': 'date'}),
-    # )
-
-    # def __init__(self, *args, **kwargs):
-    #     # BaseQueryForm.__init__ pops ``user`` off kwargs and stashes it on
-    #     # ``self.user``. The view (DataServiceQueryCreateView /
-    #     # DataServiceQueryUpdateView) passes request.user via get_form_kwargs.
-    #     super().__init__(*args, **kwargs)
-    #     # Populate the topic multi-select choices from HERMES using the
-    #     # user's own credentials so the form shows the topics *that user*
-    #     # is allowed to read. Import lazily to avoid a circular import at
-    #     # module load (dataservices.hermes imports tom_hermes.forms).
-    #     from tom_hermes.dataservices.hermes import HermesDataService
-    #     try:
-    #         self.fields['topics'].choices = HermesDataService.get_topic_choices(user=self.user)
-    #     except AttributeError:
-    #         self.fields['topics'].choices = HermesDataService.get_topic_choices()
-
     def get_layout(self):
-        """Return the crispy Layout for the form.
-
-        Groups fields into "Search text" / "Topics" / "Time" fieldsets so
-        the simple and advanced partials can share the underlying form
-        class (the partials pick which fields to render).
+        """Return the crispy Layout for the advanced form.
         """
         return Layout(
+            # Group cone search components
             Fieldset(
                 'Cone Search',
                 Div(

@@ -40,13 +40,11 @@ from datetime import datetime, timezone
 from typing import List
 
 import requests
-from django.apps import apps as django_apps
 from django.core.cache import cache
 
 from tom_dataservices.dataservices import DataService
 
 from tom_hermes import __version__
-from tom_hermes.alertstreams.ingester import ingest_hermes_alert
 from tom_hermes.credentials import resolve_hermes_credentials
 from tom_hermes.forms import HermesForm
 
@@ -162,6 +160,7 @@ class HermesDataService(DataService):
             'base_url': base,
             'info_url': cls.info_url,  # also class attribute
 
+            'query_url': f'{base}/api/v0/query',  # Generic message search (wraps archive-api), returns msg meta-data
             # 'query_url': f'{base}/api/v0/query',  # Generic message search (wraps archive-api), returns msg meta-data
             'target_url': f'{base}/api/v0/targets/',
 
@@ -250,8 +249,8 @@ class HermesDataService(DataService):
         if parameters.get('uuid'):
             query_parameters['referenced_by_uuid'] = parameters['uuid']
         if parameters.get('ra') and parameters.get('dec') and parameters.get('radius'):
-            query_parameters['cone_search'] = f'{parameters.get('ra')}, {parameters.get('dec')}, '
-            f'{parameters.get('radius')}'
+            query_parameters['cone_search'] = (f'{parameters.get("ra")}, {parameters.get("dec")}, '
+                                               f'{parameters.get("radius")}')
         self.query_parameters = query_parameters
         return query_parameters
 
@@ -340,7 +339,7 @@ class HermesDataService(DataService):
             for message in target_result['messages']:
                 uuid = message['uuid']
                 full_message = self._fetch_full_message(uuid)
-                target_table = full_message.get('message', {}).get('data',{}).get('targets',[])
+                target_table = full_message.get('message', {}).get('data', {}).get('targets', [])
                 # Find the appropriate target in the target table and return aliases
                 for target_obj in target_table:
                     if target_obj['name'] == target_result['name']:
@@ -359,7 +358,7 @@ class HermesDataService(DataService):
             for message in target_result['messages']:
                 uuid = message['uuid']
                 full_message = self._fetch_full_message(uuid)
-                message_phot = full_message.get('message', {}).get('data',{}).get('photometry',[])
+                message_phot = full_message.get('message', {}).get('data', {}).get('photometry', [])
                 for phot in message_phot:
                     if phot['target_name'] == target_result['name']:
                         photometry_results.append(phot)
@@ -384,10 +383,11 @@ class HermesDataService(DataService):
                     telescope=datum.get('telescope'),
                     instrument=datum.get('instrument'),
                     brightness=datum.get('brightness'),
-                    brightness_error= datum.get('brightness_error'),
+                    limit=datum.get('limiting_brightness'),
+                    brightness_error=datum.get('brightness_error'),
                     bandpass=datum.get('bandpass'),
-                    unit=datum.get('brightness_unit'),
-                    exposure_time=datum.get('exposure_time')
+                    unit=datum.get('brightness_unit') or datum.get('limiting_brightness_unit'),
+                    exposure_time=datum.get('exposure_time'),
                 )
                 reduced_datums.append(reduced_datum)
         return reduced_datums

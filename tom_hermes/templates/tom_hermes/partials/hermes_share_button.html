@@ -1,0 +1,10 @@
+{% comment %}
+  POSTs to the TargetHermesPreloadView
+{% endcomment %}
+{% load django_bootstrap5 %}
+<form method="post" action="{% url 'tom_hermes:target-preload' pk=target.id %}" target="_blank" class="d-inline">
+  {% csrf_token %}
+  <input type="hidden" name="hermes_topic" value="{{ hermes_topic }}">
+  <input type="hidden" name="submitter" value="{{ request.user }}">
+  <button type="submit" class="btn btn-info" title={{button_text}}>{{button_text}}</button>
+</form>
