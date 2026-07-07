@@ -32,7 +32,7 @@ jobs:
         poetry install
     - name: Missing Migrations
       run: |
-        poetry run python tom_app/tests/check_migrations.py
+        poetry run python tom_hermes/tests/check_migrations.py
 
   run_tests:
     runs-on: ubuntu-latest
@@ -67,7 +67,7 @@ jobs:
           python -m pip install "poetry>=2.0,<3.0"
           poetry install --with coverage,lint
       - name: Run Tests
-        run: poetry run coverage run --include=tom_app/app_code.py tom_app/tests/run_tests.py
+        run: poetry run coverage run --include=tom_hermes/dataservices --include=tom_hermes/publisher.py tom_hermes/tests/run_tests.py
       - name: Report Coverage
         run: poetry run coveralls
         env:
