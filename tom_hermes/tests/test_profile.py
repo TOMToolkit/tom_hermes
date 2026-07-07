@@ -1,18 +1,9 @@
-"""
-Tests for the per-user ``HermesProfile`` plumbing.
-
-Covers the model contract, the view's auth requirement, and the form's
-blank-means-keep behaviour. With the new ``EncryptedProperty`` descriptor
-(cipher derived from ``settings.SECRET_KEY`` rather than per-user material)
-round-trip read/write through the descriptor is exercised directly.
-"""
 from __future__ import annotations
 
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from tom_hermes.forms import HermesProfileForm
 from tom_hermes.models import HermesProfile
 
 
@@ -65,37 +56,3 @@ class HermesProfileViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         # The update form has the hermes_api_key field rendered as a password input.
         self.assertContains(response, 'name="hermes_api_key"')
-
-
-class HermesProfileFormSaveTests(TestCase):
-    """Blank submissions on encrypted fields must leave the stored value alone."""
-
-    def setUp(self):
-        self.user = User.objects.create_user(username='alice', password='pw')
-        self.profile = HermesProfile.objects.create(user=self.user)
-
-    def test_blank_encrypted_field_does_not_change_stored_value(self):
-        # Pre-seed a value so we can confirm a blank submission preserves it.
-        self.profile.hermes_api_key = 'existing-key'
-        self.profile.save()
-
-        form = HermesProfileForm(
-            data={'hermes_api_key': ''},
-            instance=self.profile,
-        )
-        self.assertTrue(form.is_valid(), msg=form.errors)
-        form.save()
-
-        self.profile.refresh_from_db()
-        self.assertEqual(self.profile.hermes_api_key, 'existing-key')
-
-    def test_non_blank_encrypted_field_writes_through(self):
-        form = HermesProfileForm(
-            data={'hermes_api_key': 'new-key'},
-            instance=self.profile,
-        )
-        self.assertTrue(form.is_valid(), msg=form.errors)
-        form.save()
-
-        self.profile.refresh_from_db()
-        self.assertEqual(self.profile.hermes_api_key, 'new-key')

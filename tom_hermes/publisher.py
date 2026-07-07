@@ -95,8 +95,8 @@ class HermesDataConverter:
             'flux': datum.flux,
             'flux_error': datum.error,
             'wavelength': datum.wavelength,
-            'flux_units': convert_astropy_flux_unit_to_hermes(datum.flux_unit),
-            'wavelength_units': convert_astropy_wavelength_unit_to_hermes(datum.wavelength_unit),
+            'flux_units': convert_astropy_flux_unit_to_hermes(getattr(datum, 'flux_unit', None)),
+            'wavelength_units': convert_astropy_wavelength_unit_to_hermes(getattr(datum, 'wavelength_unit', None)),
         }
 
         return spectroscopy_table_row

@@ -30,7 +30,7 @@ Configure your app with TOM-wide credentials by adding the following to your `se
 ```python
     HERMES_CONFIGURATION = {
         'HERMES_API_TOKEN': os.getenv('HERMES_API_TOKEN', None),  # Defaults here if user API token not set
-        'HERMES_BASE_URL': 'https://hermes-dev.lco.global/', # Optional: Defaults to `https://hermes.lco.global/`
+        'BASE_URL': 'https://hermes-dev.lco.global/', # Optional: Defaults to `https://hermes.lco.global/`
         'DEFAULT_TOPIC': 'myfavorite.topic',  # Optional: Defaults to 'tomtoolkit.test'
     }
 ```

@@ -30,6 +30,6 @@ def resolve_hermes_credentials(user=None) -> dict:
     cfg = getattr(settings, 'HERMES_CONFIGURATION', {})
     if not result['api_key'] and cfg.get('HERMES_API_TOKEN'):
         result['api_key'] = cfg['HERMES_API_TOKEN']
-    result['base_url'] = cfg.get('HERMES_BASE_URL', 'https://hermes.lco.global/')
+    result['base_url'] = cfg.get('BASE_URL', 'https://hermes.lco.global/')
 
     return result
