@@ -45,7 +45,7 @@ class TargetHermesPreloadView(LoginRequiredMixin, SingleObjectMixin, View):
 
         # get topic and title for the draft message from the post
         topic = request.POST.get('hermes_topic', '').split(':')[-1]
-        title = request.POST.get('share_title') or f'Updated data for {target.name}'
+        title = request.POST.get('message_title') or f'Updated data for {target.name}'
 
         hermes_message = BuildHermesMessage(
             title=title,

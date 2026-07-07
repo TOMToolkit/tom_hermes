@@ -27,6 +27,7 @@ def boot_django():
         INSTALLED_APPS=TOMTOOKIT_INSTALLED_APPS+[APP_NAME],
         SITE_ID=1,
         EXTRA_FIELDS={},
+        SECRET_KEY='12',
         TIME_ZONE='UTC',
         USE_TZ=True,
         HOOKS={
@@ -55,6 +56,7 @@ def boot_django():
             'guardian.backends.ObjectPermissionBackend',
         ),
         AUTH_STRATEGY='READ_ONLY',
+        ROOT_URLCONF='tom_common.urls',
         STATIC_URL='/static/',
         STATIC_ROOT=os.path.join(BASE_DIR, '_static'),
         STATICFILES_DIRS=[os.path.join(BASE_DIR, 'static')],
