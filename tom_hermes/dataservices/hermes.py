@@ -40,9 +40,9 @@ from datetime import datetime, timezone
 from typing import List
 
 import requests
-from django.core.cache import cache
+from django.conf import settings
 
-from tom_dataservices.dataservices import DataService
+from tom_dataservices.dataservices import DataService, NotConfiguredError
 
 from tom_hermes import __version__
 from tom_hermes.credentials import resolve_hermes_credentials
@@ -132,14 +132,31 @@ class HermesDataService(DataService):
         """
         return HermesForm
 
-    def build_headers(self, *args, **kwargs):
-        """Attach ``Authorization: Token <api_key>`` to every HERMES request
-        this DataService makes.
-
-        HERMES requires auth on `/api/v0/query/` and `/api/v0/topics/`;
-        So, resolve the creds get the api_key.
+    @classmethod
+    def configuration(cls):
+        """Returns the configuration dictionary for tom_hermes
         """
-        creds = resolve_hermes_credentials(getattr(self, 'user', None))
+        try:
+            return settings.HERMES_CONFIGURATION
+        except AttributeError as e:
+            raise NotConfiguredError(e)
+        except KeyError as e:
+            raise NotConfiguredError(
+                f"""tom_hermes is not configured.
+                    </br>
+                    Please see the <a href="{cls.app_link}" target="_blank">documentation</a> for more information.
+                """
+            )
+
+    @classmethod
+    def get_credentials(cls, user=None, **kwargs):
+        """Returns the credentials tom_hermes."""
+        return resolve_hermes_credentials(user)
+
+    def build_headers(self, *args, **kwargs):
+        """Hermes API requests require header: ``Authorization: Token <api_key>``
+        """
+        creds = self.get_credentials(self.user)
         api_key = creds.get('api_key')
         if not api_key:
             return {}
@@ -172,71 +189,6 @@ class HermesDataService(DataService):
             'message_url_template': f'{base}/api/v0/query/message/{{uuid}}/',  # returns full message
         }
         return urls_by_purpose
-
-    @classmethod
-    def get_topic_choices(cls, user=None) -> list:
-        """Return the list of ``(value, label)`` pairs for the advanced form's topic multi-select.
-
-        Hits ``/api/v0/topics/`` with ``Authorization: Token <api_key>``
-        taken from ``tom_hermes.credentials.resolve_hermes_credentials(user)``.
-
-        Cached for an hour, per user (don't spam HERMES and insulate users from each other).
-
-        Called by ``HermesForm.__init__``.
-        """
-        # Per-user cache key. Anonymous / background callers (no user) get a
-        # 'shared' key, which reads from settings credentials if any.
-        user_id = getattr(user, 'id', None) if user else None
-        cache_key = f'{_TOPICS_CACHE_KEY_PREFIX}:{user_id or "shared"}'
-        choices = cache.get(cache_key)
-        if choices is None:
-            creds = resolve_hermes_credentials(user)
-            api_key = creds.get('api_key')
-            if not api_key:
-                # No credentials: the /topics/ endpoint requires auth so there
-                # is nothing we can do. Render the form with empty topics;
-                # the user can still submit a search without a topic filter.
-                return []
-
-            headers = {'Authorization': f'Token {api_key}'}
-            try:
-                response = requests.get(
-                    cls.get_urls(url_type='topics_url'), headers=headers, timeout=10,
-                )
-                response.raise_for_status()
-                payload = response.json()
-
-                # figure out what the payload looks like (we don't know a priori)
-                # (we are trying to get_topic_choices from the payload).)
-                if isinstance(payload, dict):
-                    if 'topics' in payload:
-                        topics = payload['topics']
-                    elif 'results' in payload:
-                        topics = payload['results']
-                    else:
-                        logger.warning(
-                            'Unexpected HERMES topics response (dict without topics/results key): %r',
-                            list(payload.keys()),
-                        )
-                        topics = []
-                elif isinstance(payload, list):
-                    topics = payload
-                else:
-                    logger.warning('Unexpected HERMES topics response type: %s', type(payload).__name__)
-                    topics = []
-                # Topic entries can be bare strings or dicts with a 'name'
-                # key depending on the server version. Normalize to strings.
-                topics = [t['name'] if isinstance(t, dict) and 'name' in t else t for t in topics]
-                choices = [(t, t) for t in topics if isinstance(t, str)]
-                cache.set(cache_key, choices, _TOPICS_CACHE_TTL_SECONDS)
-            except requests.RequestException as exc:
-                logger.warning('Could not fetch HERMES topics for form: %s', exc)
-                choices = []
-            except (TypeError, KeyError, ValueError) as exc:
-                logger.warning('Unexpected HERMES topics response shape: %s', exc)
-                choices = []
-        # hopefully we've figured out what the topic choices are
-        return choices
 
     def build_query_parameters(self, parameters, **kwargs):
         """Translate cleaned form data into HERMES ``/target`` URL parameters.
