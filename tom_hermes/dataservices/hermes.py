@@ -110,20 +110,6 @@ class HermesDataService(DataService):
     app_version = __version__
     app_link = 'https://github.com/TOMToolkit/tom_hermes'
 
-    def __init__(self, *args, user=None, **kwargs):
-        """Accept and store the requesting User on the instance.
-
-        The ``tom_dataservices`` base class does not thread ``user`` through
-        ``__init__`` (it constructs services with no args). We accept it
-        here so that callers — including the test suite and any view that
-        passes ``user=request.user`` — can pre-populate the attribute that
-        ``build_headers`` reads. Views that instantiate via the framework's
-        zero-arg pattern can also set ``svc.user`` directly after
-        construction.
-        """
-        super().__init__(*args, **kwargs)
-        self.user = user
-
     @classmethod
     def get_form_class(cls):
         """Return the query form class the framework uses to render the query UI.
@@ -159,17 +145,17 @@ class HermesDataService(DataService):
         creds = self.get_credentials(self.user)
         api_key = creds.get('api_key')
         if not api_key:
-            return {}
+            raise NotConfiguredError(
+                f"""tom_hermes is not configured. Either user credentials or TOM-wide credentials are required.
+                    </br>
+                    Please see the <a href="{self.app_link}" target="_blank">documentation</a> for more information.
+                """
+            )
         return {'Authorization': f'Token {api_key}'}
 
     @classmethod
     def urls(cls, **kwargs) -> dict:
         """Return the dict of URLs this DataService uses, keyed by purpose.
-
-        Retrieved via ``DataService.get_urls(url_type='<key>')`` so URL
-        construction stays in one place. The ``/topics/`` path is a best
-        guess; verify against the LCOGT/hermes source at implementation
-        time.
         """
         base = cls.base_url  # base_url is class attribute
 
@@ -178,14 +164,8 @@ class HermesDataService(DataService):
             'info_url': cls.info_url,  # also class attribute
 
             'query_url': f'{base}/api/v0/query',  # Generic message search (wraps archive-api), returns msg meta-data
-            # 'query_url': f'{base}/api/v0/query',  # Generic message search (wraps archive-api), returns msg meta-data
             'target_url': f'{base}/api/v0/targets/',
 
-            'topics_url': f'{base}/api/v0/topics/',  # for topic verification
-
-
-            # the archive query response is message metadata; use this url
-            # to ask HERMES for the message content if needed.
             'message_url_template': f'{base}/api/v0/query/message/{{uuid}}/',  # returns full message
         }
         return urls_by_purpose

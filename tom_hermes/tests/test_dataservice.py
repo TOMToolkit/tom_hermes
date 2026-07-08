@@ -97,3 +97,8 @@ class CredentialTests(TestCase):
         HermesProfile.objects.create(user=self.user, hermes_api_key="")
         svc = HermesDataService(user=self.user)
         self.assertEqual(svc.build_headers(), {'Authorization': 'Token settings-key'})
+
+    def test_user_credentials_but_no_settings(self):
+        HermesProfile.objects.create(user=self.user, hermes_api_key="user-key")
+        svc = HermesDataService(user=self.user)
+        self.assertEqual(svc.build_headers(), {'Authorization': 'Token user-key'})
