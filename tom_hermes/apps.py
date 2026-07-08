@@ -15,7 +15,7 @@ class TomHermesConfig(AppConfig):
         return [{'class': f'{self.name}.dataservices.hermes.HermesDataService'}]
 
     def profile_details(self):
-        """Register the user-profile page fragment showing HERMES credential status.
+        """Register the user-profile page partial showing HERMES credential status.
         """
         return [{
             'partial': 'tom_hermes/partials/hermes_user_profile.html',

@@ -27,7 +27,6 @@ def hermes_profile_data(user) -> dict:
     context = {
         'user': user,
         'hermes_profile': profile,
-        'profile_data_list': [{}],  # Not quite sure what this does
         'hermes_api_key': profile.hermes_api_key
     }
 

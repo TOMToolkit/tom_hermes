@@ -35,7 +35,7 @@ Configure your app with TOM-wide credentials by adding the following to your `se
     }
 ```
 
-You can add `HERMES_BASE_URL` to your `settings.py` if you want to point to a hermes instance other than `https://hermes.lco.global`
+You can add `HERMES_BASE_URL` to your `settings.py` if you want to point to a hermes instance other than `https://hermes.lco.global` for submission testing. Retrieving targets from the HERMES Data Service will continue to use https://hermes.lco.global/.
 and `DEFAULT_TOPIC` if you want messages to default to a topic other than `'tomtoolkit.test'`.
 
 Users can also add their personal credentials via their profile. If you wish to rely on the defaults above and user credentials

@@ -22,6 +22,7 @@ class HermesForm(BaseQueryForm):
 
     def get_layout(self):
         """Return the crispy Layout for the advanced form.
+        Note: target_name is not included since this is in simple_fields.
         """
         return Layout(
             # Group cone search components

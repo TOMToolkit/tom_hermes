@@ -1,38 +1,3 @@
-"""
-HermesDataService — DataService subclass that queries HERMES.
-
-### Who calls what
-
-- Discovered by ``tom_dataservices.dataservices.get_data_service_classes()``
-  via ``TomHermesConfig.data_services()`` in ``apps.py``.
-- Form rendered by ``tom_dataservices.views.DataServiceQueryCreateView``
-  (URL: ``/dataservices/query/create/?data_service=Hermes``).
-- Query executed by ``tom_dataservices.views.RunQueryView`` which calls
-  ``build_query_parameters()`` then ``query_service()`` (and possibly
-  ``query_targets()``).
-- User selects rows from the results partial; the framework's
-  ``CreateTargetFromQueryView`` posts each selection back, calling
-  ``to_target()`` per row. ``to_target()`` here delegates to the shared
-  ``tom_hermes.alertstreams.ingester.ingest_hermes_alert`` so stream-ingest
-  and query-ingest share one implementation.
-
-### Endpoint contract
-
-``GET hermes.lco.global/api/v0/query?<params>`` returns JSON with the
-HERMES message structure (the same structure used by messages delivered
-via Hopskotch). See https://github.com/LCOGT/hermes for the server source.
-
-The exact query-parameter names used below (``search``, ``topic``,
-``published_after``, ``published_before``, ``page_size``) are best
-guesses; verify them against the LCOGT/hermes source when refining.
-
-### Future scope
-
-Additional query modes for ``/nonlocalizedevents/``, ``/targets/``,
-``/messages/`` endpoints. Either a second form class controlled by a
-mode select field or a sibling ``HermesLCODataService`` class
-registered alongside. Documented, not implemented here.
-"""
 from __future__ import annotations
 
 import logging
@@ -54,58 +19,13 @@ from tom_dataproducts.models import PhotometryReducedDatum
 logger = logging.getLogger(__name__)
 
 
-def _flatten_hermes_archive_row(row: dict) -> None:
-    """Add flat top-level ``topic`` / ``title`` / ``published`` / ``submitter`` / ``uuid`` keys.
-
-    HERMES archive responses nest these fields under ``metadata`` and
-    ``annotations``. The results-table template reads flat top-level keys
-    (easier to read in the template), so we promote the common fields
-    here. The original nested ``metadata`` / ``annotations`` dicts are
-    left untouched so downstream code can still reach them.
-
-    ``setdefault`` is used so that if a future HERMES response ever
-    provides the flat keys natively, our flattening is a no-op.
-    """
-    meta = row.get('metadata') or {}
-    ann = row.get('annotations') or {}
-    row.setdefault('topic', meta.get('topic', ''))
-    row.setdefault('title', ann.get('title', '') or '')
-    row.setdefault('submitter', ann.get('sender', '') or '')
-    row.setdefault('uuid', ann.get('con_text_uuid', '') or '')
-    # HERMES timestamps are integer milliseconds since epoch. Convert to
-    # an ISO-8601 UTC string so the template can render it without a
-    # custom filter.
-    ts_ms = meta.get('timestamp')
-    if ts_ms is not None and 'published' not in row:
-        try:
-            row['published'] = datetime.fromtimestamp(int(ts_ms) / 1000, tz=timezone.utc).isoformat()
-        except (TypeError, ValueError):
-            row['published'] = ''
-
-
-_TOPICS_CACHE_KEY_PREFIX = 'tom_hermes:topics'  # namespace the cache data
-_TOPICS_CACHE_TTL_SECONDS = 60 * 60  # one hour
-
-
 class HermesDataService(DataService):
-    """Query the HERMES ``/query`` wrapper and (optionally) ingest selected results.
-
-    Targets ``hermes.lco.global/api/v0/query``, which proxies to the SCIMMA
-    Hopskotch archive. The ingestion action (see ``to_target``) calls the
-    same ``ingest_hermes_alert`` function that the Hopskotch stream handler
-    in ``tom_hermes.alertstreams.ingester`` calls. This ensures a message
-    ingested via the archive query writes the same rows to the TOM's
-    database as the same message ingested from the live Hopskotch stream.
+    """Query the HERMES Dataservice
     """
-
-    # Class attributes consumed by the tom_dataservices framework during
-    # discovery and template rendering (nav entries, form headers, etc.).
     name = 'Hermes'
     verbose_name = 'HERMES Messaging Service'
     info_url = 'https://hermes.lco.global/about'
     base_url = 'https://hermes.lco.global'
-    # Path to the custom results partial so the DataService results page
-    # renders HERMES-shaped rows rather than the generic target table.
     query_results_table = 'tom_hermes/partials/hermes_query_results_table.html'
     app_version = __version__
     app_link = 'https://github.com/TOMToolkit/tom_hermes'

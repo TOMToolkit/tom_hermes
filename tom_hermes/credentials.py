@@ -8,7 +8,8 @@ from tom_hermes.models import HermesProfile
 
 
 def resolve_hermes_credentials(user=None) -> dict:
-    """Return the HERMES credentials dict to use for this User.
+    """Return the HERMES credentials dict for this User.
+    Default to settings.py credentials if no user credentials found
 
     Params: user
     Return: dict:: {'api_key','base_url'}
