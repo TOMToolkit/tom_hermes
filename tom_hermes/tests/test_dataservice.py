@@ -28,7 +28,7 @@ class BuildQueryParametersTests(TestCase):
             'name_exact': input_fields['exact_name'],
             'name': input_fields['target_name'],
             'referenced_by_uuid': input_fields['uuid'],
-            'cone_search': f'{input_fields['ra']}, {input_fields['dec']}, {input_fields['radius']}'
+            'cone_search': f'{input_fields["ra"]}, {input_fields["dec"]}, {input_fields["radius"]}'
         })
 
 
