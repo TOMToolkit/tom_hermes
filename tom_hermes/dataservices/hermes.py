@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import List
 
 import requests
@@ -46,7 +45,7 @@ class HermesDataService(DataService):
             return settings.HERMES_CONFIGURATION
         except AttributeError as e:
             raise NotConfiguredError(e)
-        except KeyError as e:
+        except KeyError:
             raise NotConfiguredError(
                 f"""tom_hermes is not configured.
                     </br>

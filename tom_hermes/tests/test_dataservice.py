@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 
@@ -39,15 +37,17 @@ class ModelCreationTests(TestCase):
     def test_create_sidereal_target_from_query(self):
         svc = HermesDataService()
         target_result = {'id': 289,
-                           'name': 'SN2026bpu',
-                           'right_ascension': 75.6680083333,
-                           'right_ascension_sexagesimal': '5:02:40.32199999',
-                           'declination': -8.308975,
-                           'declination_sexagesimal': '-8:18:32.31',
-                           'messages': [{'id': 5875603,
-                                         'uuid': '0a6d59dd-0f18-486a-baa4-971162a82394'}]
-                          }
-        
+                         'name': 'SN2026bpu',
+                         'right_ascension': 75.6680083333,
+                         'right_ascension_sexagesimal': '5:02:40.32199999',
+                         'declination': -8.308975,
+                         'declination_sexagesimal': '-8:18:32.31',
+                         'messages': [{'id': 5875603,
+                                       'uuid': '0a6d59dd-0f18-486a-baa4-971162a82394',
+                                       }
+                                      ]
+                         }
+
         target = svc.create_target_from_query(target_result)
         self.assertEqual(target.name, target_result['name'])
         self.assertEqual(target.ra, target_result['right_ascension'])
@@ -56,14 +56,14 @@ class ModelCreationTests(TestCase):
     def test_create_nonsidereal_target_from_query(self):
         svc = HermesDataService()
         target_result = {'id': 289,
-                           'name': 'moooov',
-                           'eccentricity': 0.6680083333,
-                           'orbital_inclination': 12,
-                           'semimajor_axis': -8.308975,
-                           'messages': [{'id': 5875603,
-                                         'uuid': '0a6d59dd-0f18-486a-baa4-971162a82394'}]
-                          }
-        
+                         'name': 'moooov',
+                         'eccentricity': 0.6680083333,
+                         'orbital_inclination': 12,
+                         'semimajor_axis': -8.308975,
+                         'messages': [{'id': 5875603,
+                                       'uuid': '0a6d59dd-0f18-486a-baa4-971162a82394'}]
+                         }
+
         target = svc.create_target_from_query(target_result)
         self.assertEqual(target.name, target_result['name'])
         self.assertEqual(target.inclination, target_result['orbital_inclination'])
