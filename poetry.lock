@@ -3568,15 +3568,15 @@ files = [
 
 [[package]]
 name = "tomtoolkit"
-version = "3.0.0a12"
+version = "3.0.0a13"
 description = "TOM Toolkit and base modules"
 optional = false
 python-versions = "<3.14,>=3.10.0"
 groups = ["main"]
 markers = "sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\""
 files = [
-    {file = "tomtoolkit-3.0.0a12-py3-none-any.whl", hash = "sha256:90b7a915fec7c0d2b79d90a26ff127e941819be2f534d826ac9d256924cce6d8"},
-    {file = "tomtoolkit-3.0.0a12.tar.gz", hash = "sha256:1c214c7f27e8199f5e1b768f863d08956541d864e5840707fa6b6f05e818be6c"},
+    {file = "tomtoolkit-3.0.0a13-py3-none-any.whl", hash = "sha256:0be7b5d6aca5bc2251a4aadf160f22cca2e8ff79a6e56d800a5945c52fba96a5"},
+    {file = "tomtoolkit-3.0.0a13.tar.gz", hash = "sha256:be48bf5e38fe129fbf46d27b2eb7ce9aaa69dcecbf6c41077f80eca08c1a4c8a"},
 ]
 
 [package.dependencies]
@@ -3740,4 +3740,4 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10.0,<3.14"
-content-hash = "e6090a2321ca66e850b4032e592c23107c958dea362ab81da1310037df551375"
+content-hash = "efd94ec22244845c14f3101ecfe4fd29056a84a71bf876b8a2dbfbb3c08afbda"
