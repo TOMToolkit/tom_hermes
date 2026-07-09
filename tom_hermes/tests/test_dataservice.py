@@ -3,6 +3,8 @@ from __future__ import annotations
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 
+from tom_dataservices.dataservices import NotConfiguredError
+
 from tom_hermes.dataservices.hermes import HermesDataService
 from tom_hermes.models import HermesProfile
 
@@ -82,9 +84,10 @@ class CredentialTests(TestCase):
         self.assertEqual(svc.build_headers(), {'Authorization': 'Token settings-key'})
 
     @override_settings(HERMES_CONFIGURATION={})
-    def test_no_credentials_returns_empty_headers(self):
+    def test_no_credentials_returns_exception(self):
         svc = HermesDataService()
-        self.assertEqual(svc.build_headers(), {})
+        with self.assertRaises(NotConfiguredError):
+            svc.build_headers()
 
     @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'settings-key', 'BASE_URL': 'https://h.example/'})
     def test_credentials_with_user_token(self):
