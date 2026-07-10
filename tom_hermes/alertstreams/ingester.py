@@ -186,14 +186,14 @@ def ingest_hermes_alert(alert, metadata=None) -> dict:
     # Step 2: resolve identity.
     alert_id, topic = _resolve_alert_identity(alert_as_dict, metadata)
 
-    # Build the per-message HERMES API URL we save as
-    # ``ReducedDatum.source_location`` so the provenance stays with the
-    # datum. ``DATA_SHARING['hermes']['BASE_URL']`` is the TOM operator's
-    # configured HERMES URL; defaults to the public instance if not set.
-    if hasattr(settings, 'DATA_SHARING'):
-        hermes_base_url = settings.DATA_SHARING.get('hermes', {}).get('BASE_URL', 'https://hermes.lco.global')
+    # Build the per-message HERMES API URL we save as ``ReducedDatum.source_location``
+    # so the provenance stays with the datum.
+    DEFAULT_HERMES_BASE_URL = 'https://hermes.lco.global'  # default value defined here
+
+    if hasattr(settings, 'HERMES_CONFIGURATION'):
+        hermes_base_url = settings.HERMES_CONFIGURATION.get('HERMES_BASE_URL', DEFAULT_HERMES_BASE_URL)
     else:
-        hermes_base_url = 'https://hermes.lco.global'
+        hermes_base_url = DEFAULT_HERMES_BASE_URL
     hermes_message_url = urljoin(hermes_base_url, f'/api/v0/query/message/{alert_id}/')
 
     # ``source_name`` namespaces the topic so consumers can tell
