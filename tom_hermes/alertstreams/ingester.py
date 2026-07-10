@@ -56,8 +56,6 @@ contract) pick ``summary['targets'][0]`` and use ``target_extras`` /
 ``aliases`` directly.
 
 """
-from __future__ import annotations
-
 import json
 import logging
 import os
