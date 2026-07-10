@@ -78,7 +78,8 @@ class CredentialTests(TestCase):
         self.user = User.objects.create_user(username='alice', password='pw')
         self.client.force_login(self.user)
 
-    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'settings-key', 'BASE_URL': 'https://h.example/'})
+    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'settings-key',
+                                             'HERMES_BASE_URL': 'https://h.example/'})
     def test_credentials_no_user_defaults_to_settings(self):
         svc = HermesDataService()
         self.assertEqual(svc.build_headers(), {'Authorization': 'Token settings-key'})
@@ -89,13 +90,15 @@ class CredentialTests(TestCase):
         with self.assertRaises(NotConfiguredError):
             svc.build_headers()
 
-    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'settings-key', 'BASE_URL': 'https://h.example/'})
+    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'settings-key',
+                                             'HERMES_BASE_URL': 'https://h.example/'})
     def test_credentials_with_user_token(self):
         HermesProfile.objects.create(user=self.user, hermes_api_key="user-key")
         svc = HermesDataService(user=self.user)
         self.assertEqual(svc.build_headers(), {'Authorization': 'Token user-key'})
 
-    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'settings-key', 'BASE_URL': 'https://h.example/'})
+    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'settings-key',
+                                             'HERMES_BASE_URL': 'https://h.example/'})
     def test_credentials_with_user_but_no_token(self):
         HermesProfile.objects.create(user=self.user, hermes_api_key="")
         svc = HermesDataService(user=self.user)

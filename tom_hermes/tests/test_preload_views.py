@@ -19,7 +19,7 @@ class TargetHermesPreloadViewTests(TestCase):
         self.client.force_login(self.user)
         self.target = SiderealTargetFactory.create()
 
-    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'k', 'BASE_URL': 'https://h.example/'})
+    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'k', 'HERMES_BASE_URL': 'https://h.example/'})
     def test_post_redirects_to_hermes_with_preload_key(self):
         # ``preload_to_hermes`` is mocked at the view-module seam so we don't
         # hit HERMES. It returns the key the view should embed in the redirect.
@@ -39,7 +39,7 @@ class TargetHermesPreloadViewTests(TestCase):
         self.assertEqual(message_info.authors, '')
         self.assertEqual(targets, [self.target])
 
-    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'k', 'BASE_URL': 'https://h.example/'})
+    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'k', 'HERMES_BASE_URL': 'https://h.example/'})
     def test_default_title_when_message_title_blank(self):
         # When the form omits message_title, the view substitutes a default.
         url = reverse('tom_hermes:target-preload', args=[self.target.pk])
@@ -48,7 +48,7 @@ class TargetHermesPreloadViewTests(TestCase):
         message_info = mock_preload.call_args.args[0]
         self.assertEqual(message_info.title, f'Updated data for {self.target.name}')
 
-    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'k', 'BASE_URL': 'https://h.example/'})
+    @override_settings(HERMES_CONFIGURATION={'HERMES_API_TOKEN': 'k', 'HERMES_BASE_URL': 'https://h.example/'})
     def test_all_target_reduced_data_is_included(self):
         # Create Reduced Datums
         rd1 = PhotometryReducedDatum.objects.create(target=self.target, brightness=18.0, bandpass='r')
