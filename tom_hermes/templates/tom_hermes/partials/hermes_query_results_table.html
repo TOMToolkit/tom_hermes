@@ -1,0 +1,34 @@
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th><input type="checkbox" id="selectAll"/></th>
+            <th>Name</th>
+            <th>RA</th>
+            <th>Dec</th>
+            <th>Hermes Messages</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for result in results %}
+        <tr>
+            <td><input type="checkbox" name="selected_results" value="{{ result.id }}"/></td>
+            <td>{{ result.name }}</td>
+            <td>{{ result.right_ascension_sexagesimal }}</td>
+            <td>{{ result.declination_sexagesimal }}</td>
+            <td>
+                {% for message in result.messages %}
+                    {% if message.uuid %}
+                        <a href="https://hermes.lco.global/message/{{ message.uuid }}"
+                        target="_blank" rel="noopener">{{ forloop.counter }}</a>,
+                    {% endif %}
+                {% endfor %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6"><em>No results.</em></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<small class="text-muted">tom_hermes {{ version }}</small>

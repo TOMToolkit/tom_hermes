@@ -1,0 +1,35 @@
+{% comment %}
+    HERMES card on the user-profile page.
+{% endcomment %}
+<div class="card">
+    <div class="card-header bg-dark text-light">
+        <div style="display: flex; justify-content: space-between">
+            <h4 class="card-title">HERMES Credentials</h4>
+            <div>
+                <a
+                    title="Edit"
+                    href="{% url 'tom_hermes:hermes-profile-update' pk=hermes_profile.id %}"
+                    ><i class="fa fa-pencil" aria-hidden="true"></i
+                ></a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <p>
+            Per-user HERMES credentials used for publishing and (when configured)
+            subscribing. When empty, the TOM falls back to the TOM-wide credentials
+            configured in <code>settings.HERMES_CONFIGURATION['HERMES_API_TOKEN']</code>.
+        </p>
+        <hr />
+        <dl class="row">
+            <dt class="col-sm-6">HERMES API Key</dt>
+            <dd class="col-sm-6">
+                {% if hermes_api_key %}
+                    {% include 'tom_common/partials/revealable_password_input.html' with value=hermes_api_key %}
+                {% else %}
+                    (not set)
+                {% endif %}
+             </dd>
+        </dl>
+    </div>
+</div>

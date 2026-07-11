@@ -1,0 +1,15 @@
+{% extends 'tom_common/base.html' %}
+{% load django_bootstrap5 %}
+{% block title %}Update HERMES Profile{% endblock %}
+{% block content %}
+
+<h3>HERMES Profile update form for user: {{user.username}}</h3>
+<hr>
+<div class="w-50">  {# Sets the width to 50% #}
+    <form method="post">
+        {% csrf_token %}
+        {{ form }}
+        {% bootstrap_button "Update" button_type="submit" button_class="btn btn-primary" title="Update" %}
+    </form>
+</div>
+{% endblock %}
