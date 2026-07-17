@@ -1,8 +1,8 @@
 [![pypi](https://img.shields.io/pypi/v/tom-hermes.svg)](https://pypi.python.org/pypi/tom-hermes)
 
 # tom_hermes
-This module adds the [Hermes](https://hermes.lco.global) dataservice to the TOM Toolkit. 
-Using this module, TOMs can query targets in the Hermes alert archive.
+This module adds the [Hermes](https://hermes.lco.global) dataservice and messaging portal to the TOM Toolkit. 
+Using this module, TOMs can query targets in the Hermes alert archive as well as submitting targets as messages via Hermes.
 
 ## Installation
 
